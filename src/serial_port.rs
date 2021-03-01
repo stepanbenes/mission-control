@@ -1,13 +1,12 @@
 extern crate serial;
 
-use serial::prelude::SerialPort;
 use std::io::Error;
 use std::io::Read;
 use std::io::Write;
 use std::sync::Mutex;
 use std::time::Duration;
 
-pub struct SerialPortX {
+pub struct SerialPort {
     port: Mutex<serial::SystemPort>,
 }
 
@@ -21,13 +20,13 @@ const PORT_SETTINGS: serial::PortSettings = serial::PortSettings {
     flow_control: serial::FlowNone,
 };
 
-impl SerialPortX {
+impl SerialPort {
     pub fn open(port_name: &str) -> Result<Self, Error> {
         let mut port = serial::open(port_name)?;
-        port.configure(&PORT_SETTINGS).unwrap();
+        serial::SerialPort::configure(&mut port, &PORT_SETTINGS)?;
         // timeout of 30s
-        port.set_timeout(Duration::from_secs(30)).unwrap();
-        Ok(SerialPortX {
+        serial::SerialPort::set_timeout(&mut port, Duration::from_secs(30))?;
+        Ok(SerialPort {
             port: Mutex::new(port),
         })
     }
