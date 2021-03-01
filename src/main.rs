@@ -1,7 +1,7 @@
 extern crate joydev;
-mod serial_port;
+mod non_blocking_serial_port;
 use joydev::{event_codes::AbsoluteAxis, event_codes::Key, Device, DeviceEvent, GenericEvent};
-use serial_port::*;
+use non_blocking_serial_port::*;
 use std::sync::{mpsc::channel, Arc};
 use std::thread;
 use std::time::Duration;
@@ -20,7 +20,7 @@ enum Notification {
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // open serial port
-    let serial_port = Arc::new(SerialPortX::open("/dev/ttyACM0")?);
+    let serial_port = Arc::new(NonBlockingSerialPort::open("/dev/ttyACM0")?);
 
     // open joistick controller
     let device = Device::open("/dev/input/js0")?;
@@ -33,13 +33,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let tx = tx.clone();
         let serial_port = Arc::clone(&serial_port);
         thread::spawn(move || loop {
-            match serial_port.read_u8() {
-                Ok(byte) => {
+            match serial_port.try_read_u8() {
+                Ok(Some(byte)) => {
                     println!("Received char: {}", byte as char);
                     tx.send(Notification::SerialInput(byte)).unwrap();
                 }
-                Err(_) => () // continue
-                //_ => panic!("serial_port.read_u8() failed"),
+                Ok(None) => continue,
+                Err(_) => panic!("serial_port.try_read_u8() failed"),
             }
             thread::sleep(Duration::from_millis(10));
         });
