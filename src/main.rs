@@ -12,9 +12,13 @@ enum Notification {
     //NetworkCommand(String),
 }
 
+// how to run: 1. connect dualshock4 to raspberry
+//             2. sudo ds4drv --hidraw &
+//             3. sudo ./dualshock
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // open serial port
-    let serial_port = Arc::new(SerialPort::open("/dev/ttyACM0")?);
+    let serial_port = Arc::new(SerialPortX::open("/dev/ttyACM0")?);
     // open joistick controller
     let device = Device::open("/dev/input/js0")?;
 
@@ -28,7 +32,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         thread::spawn(move || loop {
             match serial_port.read_u8() /*read_u8 blocks*/ {
                 Ok(byte) => tx.send(Notification::SerialInput(byte)).unwrap(),
-                _ => panic!(),
+                _ => panic!("serial_port.read_u8() failed"),
             }
         });
     }
