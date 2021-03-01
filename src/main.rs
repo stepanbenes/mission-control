@@ -31,7 +31,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let serial_port = Arc::clone(&serial_port);
         thread::spawn(move || loop {
             match serial_port.read_u8() /*read_u8 blocks*/ {
-                Ok(byte) => tx.send(Notification::SerialInput(byte)).unwrap(),
+                Ok(byte) => {
+                    println!("Received char: {}", byte as char);
+                    tx.send(Notification::SerialInput(byte)).unwrap();
+                }
                 _ => panic!("serial_port.read_u8() failed"),
             }
         });
@@ -52,9 +55,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 },
                 Ok(event) => match event {
                     DeviceEvent::Axis(event) => {
+                        println!("Axis event: {:?}", event);
                         tx.send(Notification::ControllerAxis(event)).unwrap()
                     }
                     DeviceEvent::Button(event) => {
+                        println!("Button event: {:?}", event);
                         tx.send(Notification::ControllerButton(event)).unwrap()
                     }
                 },
