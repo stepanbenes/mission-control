@@ -4,6 +4,7 @@ use joydev::{event_codes::AbsoluteAxis, event_codes::Key, Device, DeviceEvent, G
 use serial_port::*;
 use std::sync::{mpsc::channel, Arc};
 use std::thread;
+use std::time::Duration;
 
 #[derive(Debug)]
 enum Notification {
@@ -38,6 +39,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
                 _ => panic!("serial_port.read_u8() failed"),
             }
+            thread::sleep(Duration::from_millis(10));
         });
     }
 

@@ -33,7 +33,7 @@ impl SerialPort {
 
     pub fn read_u8(&self) -> Result<u8, Error> {
         let mut read_buffer = [0u8; 1];
-        self.port.lock().unwrap().read_exact(&mut read_buffer)?;
+        self.port.lock().unwrap().read(&mut read_buffer)?;
         Ok(read_buffer[0] as u8)
     }
 
