@@ -5,6 +5,7 @@ use serial_port::*;
 use std::sync::{mpsc::channel, Arc};
 use std::thread;
 
+#[derive(Debug)]
 enum Notification {
     ControllerButton(joydev::ButtonEvent),
     ControllerAxis(joydev::AxisEvent),
@@ -70,6 +71,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     {
         /*recv() blocks*/
         while let Ok(notification) = rx.recv() {
+            println!("notification: {:?}", notification);
             match notification {
                 Notification::SerialInput(_byte) => (),
                 Notification::ControllerButton(button_event) => {
