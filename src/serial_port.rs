@@ -1,44 +1,46 @@
-extern crate serial;
+extern crate mio_serial;
 
-use std::io::Error;
+use mio_serial::SerialPort;
 use std::io::Read;
 use std::io::Write;
+use std::io::{Error, ErrorKind};
 use std::sync::Mutex;
 use std::time::Duration;
 
-pub struct SerialPort {
-    port: Mutex<serial::SystemPort>,
+pub struct SerialPortX {
+    port: Mutex<mio_serial::Serial>,
 }
 
 // Default settings of Arduino
 // see: https://www.arduino.cc/en/Serial/Begin
-const PORT_SETTINGS: serial::PortSettings = serial::PortSettings {
-    baud_rate: serial::Baud9600,
-    char_size: serial::Bits8,
-    parity: serial::ParityNone,
-    stop_bits: serial::Stop1,
-    flow_control: serial::FlowNone,
+const PORT_SETTINGS: mio_serial::SerialPortSettings = mio_serial::SerialPortSettings {
+    baud_rate: 9600,
+    data_bits: mio_serial::DataBits::Eight,
+    parity: mio_serial::Parity::None,
+    stop_bits: mio_serial::StopBits::One,
+    flow_control: mio_serial::FlowControl::None,
+    timeout: Duration::from_secs(30),
 };
 
-impl SerialPort {
+impl SerialPortX {
     pub fn open(port_name: &str) -> Result<Self, Error> {
-        let mut port = serial::open(port_name)?;
-        serial::SerialPort::configure(&mut port, &PORT_SETTINGS)?;
-        // timeout of 30s
-        serial::SerialPort::set_timeout(&mut port, Duration::from_secs(30))?;
+        // https://docs.rs/mio-serial/3.3.1/mio_serial/trait.SerialPort.html#tymethod.bytes_to_read
 
-        Ok(SerialPort {
-            port: Mutex::new(port),
+        let mio_serial_port = mio_serial::Serial::from_path(port_name, &PORT_SETTINGS)?;
+
+        Ok(SerialPortX {
+            port: Mutex::new(mio_serial_port),
         })
     }
 
     pub fn read_u8(&self) -> Result<u8, Error> {
-        let mut read_buffer = [0u8];
-        self.port.lock().unwrap().read_exact(&mut read_buffer)?;
-        if read_buffer.len() == 0 {
-            Err(Error::from(std::io::ErrorKind::WouldBlock))
-        } else {
+        let byte_count = self.port.lock().unwrap().bytes_to_read()?;
+        if byte_count > 0 {
+            let mut read_buffer = [0u8];
+            self.port.lock().unwrap().read_exact(&mut read_buffer)?;
             Ok(read_buffer[0] as u8)
+        } else {
+            Err(Error::from(ErrorKind::WouldBlock))
         }
     }
 

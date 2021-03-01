@@ -20,7 +20,7 @@ enum Notification {
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // open serial port
-    let serial_port = Arc::new(SerialPort::open("/dev/ttyACM0")?);
+    let serial_port = Arc::new(SerialPortX::open("/dev/ttyACM0")?);
 
     // open joistick controller
     let device = Device::open("/dev/input/js0")?;
