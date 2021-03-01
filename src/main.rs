@@ -41,7 +41,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 Ok(None) => continue,
                 Err(_) => panic!("serial_port.try_read_u8() failed"),
             }
-            thread::sleep(Duration::from_millis(10));
+            thread::sleep(Duration::from_millis(10)); // longer delay?
         });
     }
 
@@ -52,7 +52,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             // TODO: is it blocking? If not, it does not need a separate thread
             match device.get_event() {
                 Err(error) => match error {
-                    joydev::Error::QueueEmpty => (), // TODO: wait?
+                    joydev::Error::QueueEmpty => println!("queue empty"), // TODO: wait?
                     _ => panic!(
                         "{}: {:?}",
                         "called `Result::unwrap()` on an `Err` value", &error
