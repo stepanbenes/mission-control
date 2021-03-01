@@ -11,12 +11,12 @@ enum Notification {
     ControllerButton(joydev::ButtonEvent),
     ControllerAxis(joydev::AxisEvent),
     SerialInput(u8),
-    //NetworkCommand(String),
+    //NetworkCommand(String), // TODO: add network communication
 }
 
 // how to run: 1. connect dualshock4 to raspberry
 //             2. sudo ds4drv --hidraw &
-//             3. sudo ./dualshock
+//             3. sudo ./mission-control
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // open serial port
@@ -26,13 +26,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let device = Device::open("/dev/input/js0")?;
 
     // create communication channel
-    let (tx, rx) = channel::<Notification>();
+    let (tx, rx) = channel::<Notification>(); // TODO: is channel necessary if threads are not necessary?
 
     // read serial port
     {
         let tx = tx.clone();
         let serial_port = Arc::clone(&serial_port);
         thread::spawn(move || loop {
+            // TODO: this is non-blocking, so the thread and mutex is not needed
             match serial_port.try_read_u8() {
                 Ok(Some(byte)) => {
                     println!("Received char: {}", byte as char);
@@ -49,10 +50,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     {
         let tx = tx.clone();
         thread::spawn(move || loop {
-            // TODO: is it blocking? If not, it does not need a separate thread
+            // TODO: this is not blocking, so it does not need a separate thread
             match device.get_event() {
                 Err(error) => match error {
-                    joydev::Error::QueueEmpty => println!("queue empty"), // TODO: wait?
+                    joydev::Error::QueueEmpty => (), // TODO: wait?
                     _ => panic!(
                         "{}: {:?}",
                         "called `Result::unwrap()` on an `Err` value", &error
@@ -71,6 +72,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         });
     }
+
     // consumer loop
     {
         /*recv() blocks*/
@@ -87,17 +89,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         Key::ButtonSouth => {
                             serial_port.write_u8(b's')?;
                         }
-                        _ => (), // ignore rest
+                        _ => (),
                     }
                 }
                 Notification::ControllerAxis(axis_event) => match axis_event.axis() {
                     AbsoluteAxis::LeftX => {
                         let _value = axis_event.value();
                     }
-                    _ => (), // ignore rest
+                    _ => (),
                 },
             }
         }
     }
+
     unreachable!()
 }
