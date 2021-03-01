@@ -32,9 +32,13 @@ impl SerialPort {
     }
 
     pub fn read_u8(&self) -> Result<u8, Error> {
-        let mut read_buffer = [0u8; 1];
-        self.port.lock().unwrap().read(&mut read_buffer)?;
-        Ok(read_buffer[0] as u8)
+        let mut read_buffer = Vec::new();
+        self.port.lock().unwrap().read_to_end(&mut read_buffer)?;
+        if read_buffer.len() == 0 {
+            Err(Error::from(std::io::ErrorKind::WouldBlock))
+        } else {
+            Ok(read_buffer[0] as u8)
+        }
     }
 
     pub fn write_u8(&self, data: u8) -> Result<usize, Error> {
