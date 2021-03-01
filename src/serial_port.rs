@@ -26,14 +26,15 @@ impl SerialPort {
         serial::SerialPort::configure(&mut port, &PORT_SETTINGS)?;
         // timeout of 30s
         serial::SerialPort::set_timeout(&mut port, Duration::from_secs(30))?;
+
         Ok(SerialPort {
             port: Mutex::new(port),
         })
     }
 
     pub fn read_u8(&self) -> Result<u8, Error> {
-        let mut read_buffer = Vec::new();
-        self.port.lock().unwrap().read_to_end(&mut read_buffer)?;
+        let mut read_buffer = [0u8];
+        self.port.lock().unwrap().read_exact(&mut read_buffer)?;
         if read_buffer.len() == 0 {
             Err(Error::from(std::io::ErrorKind::WouldBlock))
         } else {
