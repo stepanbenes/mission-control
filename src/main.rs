@@ -28,12 +28,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // create communication channel
     let (tx, rx) = channel::<Notification>(); // TODO: is channel necessary if threads are not necessary?
 
-    // producer 1 loop
+    // listen to serial port events
     {
         let tx = tx.clone();
         let serial_port = Arc::clone(&serial_port);
         thread::spawn(move || loop {
-            // listen to serial port events
             match serial_port.try_read_u8() {
                 Ok(Some(byte)) => {
                     println!("Received char: {}", byte as char);
@@ -43,7 +42,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 Err(_) => panic!("serial_port.try_read_u8() failed"),
             }
 
-            // listen to serial port events and dualshock PS4 controller events
+            // wait for some time to not consume 100% thread time
+            thread::sleep(Duration::from_millis(10)); // longer delay?
+        });
+    }
+
+    // listen to serial port events and dualshock PS4 controller events
+    {
+        let tx = tx.clone();
+        thread::spawn(move || loop {
             match device.get_event() {
                 Ok(event) => match event {
                     DeviceEvent::Axis(event) => {
