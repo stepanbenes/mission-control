@@ -28,12 +28,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // create communication channel
     let (tx, rx) = channel::<Notification>(); // TODO: is channel necessary if threads are not necessary?
 
-    // read serial port
+    // producer loop
     {
         let tx = tx.clone();
         let serial_port = Arc::clone(&serial_port);
         thread::spawn(move || loop {
-            // TODO: this is non-blocking, so the thread and mutex is not needed
+            // listen to serial port events
             match serial_port.try_read_u8() {
                 Ok(Some(byte)) => {
                     println!("Received char: {}", byte as char);
@@ -42,34 +42,32 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 Ok(None) => continue,
                 Err(_) => panic!("serial_port.try_read_u8() failed"),
             }
-            thread::sleep(Duration::from_millis(10)); // longer delay?
-        });
-    }
 
-    // Dualshock PS4 controller events
-    {
-        let tx = tx.clone();
-        thread::spawn(move || loop {
-            // TODO: this is not blocking, so it does not need a separate thread
-            match device.get_event() {
-                Err(error) => match error {
-                    joydev::Error::QueueEmpty => (), // TODO: wait?
-                    _ => panic!(
-                        "{}: {:?}",
-                        "called `Result::unwrap()` on an `Err` value", &error
-                    ),
-                },
-                Ok(event) => match event {
-                    DeviceEvent::Axis(event) => {
-                        println!("Axis event: {:?}", event);
-                        tx.send(Notification::ControllerAxis(event)).unwrap()
-                    }
-                    DeviceEvent::Button(event) => {
-                        println!("Button event: {:?}", event);
-                        tx.send(Notification::ControllerButton(event)).unwrap()
-                    }
-                },
+            // listen to serial port events and dualshock PS4 controller events
+            loop {
+                match device.get_event() {
+                    Ok(event) => match event {
+                        DeviceEvent::Axis(event) => {
+                            println!("Axis event: {:?}", event);
+                            tx.send(Notification::ControllerAxis(event)).unwrap()
+                        }
+                        DeviceEvent::Button(event) => {
+                            println!("Button event: {:?}", event);
+                            tx.send(Notification::ControllerButton(event)).unwrap()
+                        }
+                    },
+                    Err(error) => match error {
+                        joydev::Error::QueueEmpty => break,
+                        _ => panic!(
+                            "{}: {:?}",
+                            "called `Result::unwrap()` on an `Err` value", &error
+                        ),
+                    },
+                }
             }
+
+            // wait for some time to not consume 100% thread time
+            thread::sleep(Duration::from_millis(10)); // longer delay?
         });
     }
 
