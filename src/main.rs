@@ -28,7 +28,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // create communication channel
     let (tx, rx) = channel::<Notification>(); // TODO: is channel necessary if threads are not necessary?
 
-    // producer loop
+    // producer 1 loop
     {
         let tx = tx.clone();
         let serial_port = Arc::clone(&serial_port);
@@ -44,26 +44,24 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
 
             // listen to serial port events and dualshock PS4 controller events
-            'joy_loop: loop {
-                match device.get_event() {
-                    Ok(event) => match event {
-                        DeviceEvent::Axis(event) => {
-                            println!("Axis event: {:?}", event);
-                            tx.send(Notification::ControllerAxis(event)).unwrap()
-                        }
-                        DeviceEvent::Button(event) => {
-                            println!("Button event: {:?}", event);
-                            tx.send(Notification::ControllerButton(event)).unwrap()
-                        }
-                    },
-                    Err(error) => match error {
-                        joydev::Error::QueueEmpty => break 'joy_loop,
-                        _ => panic!(
-                            "{}: {:?}",
-                            "called `Result::unwrap()` on an `Err` value", &error
-                        ),
-                    },
-                }
+            match device.get_event() {
+                Ok(event) => match event {
+                    DeviceEvent::Axis(event) => {
+                        println!("Axis event: {:?}", event);
+                        tx.send(Notification::ControllerAxis(event)).unwrap()
+                    }
+                    DeviceEvent::Button(event) => {
+                        println!("Button event: {:?}", event);
+                        tx.send(Notification::ControllerButton(event)).unwrap()
+                    }
+                },
+                Err(error) => match error {
+                    joydev::Error::QueueEmpty => (),
+                    _ => panic!(
+                        "{}: {:?}",
+                        "called `Result::unwrap()` on an `Err` value", &error
+                    ),
+                },
             }
 
             // wait for some time to not consume 100% thread time
