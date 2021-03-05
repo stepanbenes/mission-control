@@ -44,7 +44,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
 
             // listen to serial port events and dualshock PS4 controller events
-            loop {
+            'joy_loop: loop {
                 match device.get_event() {
                     Ok(event) => match event {
                         DeviceEvent::Axis(event) => {
@@ -57,7 +57,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         }
                     },
                     Err(error) => match error {
-                        joydev::Error::QueueEmpty => break,
+                        joydev::Error::QueueEmpty => break 'joy_loop,
                         _ => panic!(
                             "{}: {:?}",
                             "called `Result::unwrap()` on an `Err` value", &error
