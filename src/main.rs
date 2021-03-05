@@ -70,9 +70,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     ),
                 },
             }
-
-            // wait for some time to not consume 100% thread time
-            thread::sleep(Duration::from_millis(10)); // longer delay?
         });
     }
 
