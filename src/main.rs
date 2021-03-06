@@ -38,12 +38,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     println!("Received char: {}", byte as char);
                     tx.send(Notification::SerialInput(byte)).unwrap();
                 }
-                Ok(None) => continue,
+                Ok(None) => (),
                 Err(_) => panic!("serial_port.try_read_u8() failed"),
             }
 
             // wait for some time to not consume 100% thread time
-            thread::sleep(Duration::from_millis(10)); // longer delay?
+            thread::sleep(Duration::from_millis(20)); // longer delay?
         });
     }
 
@@ -76,29 +76,32 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // consumer loop
     {
         /*recv() blocks*/
-        while let Ok(notification) = rx.recv() {
-            println!("notification: {:?}", notification);
-            match notification {
-                Notification::SerialInput(_byte) => (),
-                Notification::ControllerButton(button_event) => {
-                    match button_event.button() {
-                        // see: https://gitlab.com/gm666q/joydev-rs/-/blob/master/joydev/src/event_codes/key.rs
-                        Key::ButtonNorth => {
-                            serial_port.write_u8(b'f')?;
+        loop {
+            if let Ok(notification) = rx.try_recv() {
+                println!("notification: {:?}", notification);
+                match notification {
+                    Notification::SerialInput(_byte) => (),
+                    Notification::ControllerButton(button_event) => {
+                        match button_event.button() {
+                            // see: https://gitlab.com/gm666q/joydev-rs/-/blob/master/joydev/src/event_codes/key.rs
+                            Key::ButtonNorth => {
+                                serial_port.write_u8(b'f')?;
+                            }
+                            Key::ButtonSouth => {
+                                serial_port.write_u8(b's')?;
+                            }
+                            _ => (),
                         }
-                        Key::ButtonSouth => {
-                            serial_port.write_u8(b's')?;
+                    }
+                    Notification::ControllerAxis(axis_event) => match axis_event.axis() {
+                        AbsoluteAxis::LeftX => {
+                            let _value = axis_event.value();
                         }
                         _ => (),
-                    }
+                    },
                 }
-                Notification::ControllerAxis(axis_event) => match axis_event.axis() {
-                    AbsoluteAxis::LeftX => {
-                        let _value = axis_event.value();
-                    }
-                    _ => (),
-                },
             }
+            thread::sleep(Duration::from_millis(20));
         }
     }
 
