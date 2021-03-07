@@ -1,5 +1,5 @@
-extern crate joydev;
 mod non_blocking_serial_port;
+
 use joydev::{event_codes::AbsoluteAxis, event_codes::Key, Device, DeviceEvent, GenericEvent};
 use non_blocking_serial_port::*;
 use std::sync::{mpsc::channel, Arc};
@@ -12,6 +12,7 @@ enum Notification {
     ControllerAxis(joydev::AxisEvent),
     SerialInput(u8),
     //NetworkCommand(String), // TODO: add network communication
+    CtrlC
 }
 
 // how to run: 1. connect dualshock4 to raspberry
@@ -27,6 +28,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // create communication channel
     let (tx, rx) = channel::<Notification>(); // TODO: is channel necessary if threads are not necessary?
+
+    // setup CTRL+C intrerrupt
+    {
+        let tx = tx.clone();
+        ctrlc::set_handler(move || { tx.send(Notification::CtrlC).unwrap(); }).expect("Error setting Ctrl-C handler");
+    }
 
     // listen to serial port events
     {
@@ -49,9 +56,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // listen to serial port events and dualshock PS4 controller events
     {
-        let tx = tx.clone();
+        //let tx = tx.clone();
         thread::spawn(move || loop {
-            match device.get_event() {
+            match device.get_event() { // TODO: this is problem, it is non-blocking and the loop is consuming 100% CPU time
                 Ok(event) => match event {
                     DeviceEvent::Axis(event) => {
                         println!("Axis event: {:?}", event);
@@ -73,11 +80,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         });
     }
 
-    // consumer loop
+    // notification processing loop
     {
-        /*recv() blocks*/
-        loop {
-            if let Ok(notification) = rx.try_recv() {
+        'consumer_loop: loop {
+            /*recv() blocks*/
+            if let Ok(notification) = rx.recv() {
                 println!("notification: {:?}", notification);
                 match notification {
                     Notification::SerialInput(_byte) => (),
@@ -99,11 +106,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         }
                         _ => (),
                     },
+                    Notification::CtrlC => break 'consumer_loop,
                 }
             }
-            thread::sleep(Duration::from_millis(20));
         }
     }
 
-    unreachable!()
+    println!("Quiting.");
+
+    // TODO: serial port may not be disposed ?!?
+
+    Ok(())
 }
