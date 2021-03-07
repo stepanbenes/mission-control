@@ -56,7 +56,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // listen to serial port events and dualshock PS4 controller events
     {
-        //let tx = tx.clone();
+        let tx = tx.clone();
         thread::spawn(move || loop {
             match device.get_event() { // TODO: this is problem, it is non-blocking and the loop is consuming 100% CPU time
                 Ok(event) => match event {
@@ -112,9 +112,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    println!("Quiting.");
-
     // TODO: serial port may not be disposed ?!?
+    drop(serial_port);
 
     Ok(())
 }
