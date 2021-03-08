@@ -130,6 +130,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 .finish(&mut gilrs)
                                 .unwrap();
                             effect.play().unwrap();
+                            thread::sleep(Duration::from_secs(11));
                         }
                         _ => {}
                     }
