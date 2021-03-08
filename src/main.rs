@@ -111,7 +111,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             if let Ok(notification) = rx.recv() {
                 println!("notification: {:?}", notification);
                 match notification {
-                    Notification::SerialInput(_byte) => (),
+                    Notification::SerialInput(_byte) => {}
                     Notification::ControllerButton(button_event) => {
                         match button_event.button() {
                             // see: https://gitlab.com/gm666q/joydev-rs/-/blob/master/joydev/src/event_codes/key.rs
