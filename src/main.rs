@@ -89,7 +89,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .next()
                 .ok_or(static_err("No gamepad is connected."))
                 .unwrap(); // TODO: catch errors
-            println!("{} is {:?}", gamepad.name(), gamepad.power_info());
+            println!(
+                "{} is {:?}; ff: {}",
+                gamepad.name(),
+                gamepad.power_info(),
+                gamepad.is_ff_supported()
+            );
 
             while is_running.load(Ordering::SeqCst) {
                 while let Some(Event {
