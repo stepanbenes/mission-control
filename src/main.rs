@@ -11,7 +11,8 @@ use std::time::Duration;
 
 use signal_hook::{consts::TERM_SIGNALS, iterator::Signals};
 
-use gilrs::{Button, Event, Gilrs};
+use gilrs::{Button, Event, Gamepad, Gilrs};
+use string_error::static_err;
 
 #[derive(Debug)]
 enum Notification {
@@ -32,14 +33,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // create communication channel
     let (tx, rx) = channel::<Notification>(); // TODO: is channel necessary if threads are not necessary?
-
-    // open joystick controller
-    let mut gilrs = Gilrs::new()?;
-
-    // Iterate over all connected gamepads
-    for (_id, gamepad) in gilrs.gamepads() {
-        println!("{} is {:?}", gamepad.name(), gamepad.power_info());
-    }
 
     // setup interrupt signals
     let is_running = Arc::new(AtomicBool::new(true));
@@ -80,35 +73,58 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // listen to dualshock PS4 controller events
-    // let joystick_thread;
-    // {
-    //     let tx = tx.clone();
-    //     let is_running = is_running.clone();
-    //     joystick_thread = thread::spawn(move || {
-    //         while is_running.load(Ordering::SeqCst) {
-    //             match joystick.get_event() {
-    //                 // TODO: this is problem, it is non-blocking and the loop is consuming 100% CPU time
-    //                 Ok(event) => match event {
-    //                     DeviceEvent::Axis(event) => {
-    //                         println!("Axis event: {:?}", event);
-    //                         tx.send(Notification::ControllerAxis(event)).unwrap()
-    //                     }
-    //                     DeviceEvent::Button(event) => {
-    //                         println!("Button event: {:?}", event);
-    //                         tx.send(Notification::ControllerButton(event)).unwrap()
-    //                     }
-    //                 },
-    //                 Err(error) => match error {
-    //                     joydev::Error::QueueEmpty => (),
-    //                     _ => panic!(
-    //                         "{}: {:?}",
-    //                         "called `Result::unwrap()` on an `Err` value", &error
-    //                     ),
-    //                 },
-    //             }
-    //         }
-    //     });
-    // }
+    let gamepad_thread;
+    {
+        let tx = tx.clone();
+        let is_running = is_running.clone();
+        gamepad_thread = thread::spawn(move || {
+            // open joystick controller
+            let mut gilrs = Gilrs::new().unwrap(); // TODO: catch errors
+
+            // get first connected gamepad
+            let (_, gamepad) = gilrs
+                .gamepads()
+                .next()
+                .ok_or(static_err("No gamepad is connected."))
+                .unwrap(); // TODO: catch errors
+            println!("{} is {:?}", gamepad.name(), gamepad.power_info());
+
+            while is_running.load(Ordering::SeqCst) {
+                while let Some(Event {
+                    id: _,
+                    event,
+                    time: _,
+                }) = gilrs.next_event()
+                {
+                    println!("{:?}", event);
+                }
+
+                // wait for some time to not consume 100% thread time
+                thread::sleep(Duration::from_millis(20)); // longer delay?
+
+                // match joystick.get_event() {
+                //     // TODO: this is problem, it is non-blocking and the loop is consuming 100% CPU time
+                //     Ok(event) => match event {
+                //         DeviceEvent::Axis(event) => {
+                //             println!("Axis event: {:?}", event);
+                //             tx.send(Notification::ControllerAxis(event)).unwrap()
+                //         }
+                //         DeviceEvent::Button(event) => {
+                //             println!("Button event: {:?}", event);
+                //             tx.send(Notification::ControllerButton(event)).unwrap()
+                //         }
+                //     },
+                //     Err(error) => match error {
+                //         joydev::Error::QueueEmpty => (),
+                //         _ => panic!(
+                //             "{}: {:?}",
+                //             "called `Result::unwrap()` on an `Err` value", &error
+                //         ),
+                //     },
+                // }
+            }
+        });
+    }
 
     // notification processing loop
     {
@@ -148,9 +164,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     serial_port_thread
         .join()
         .expect("The serial port thread being joined has panicked.");
-    // joystick_thread
-    //     .join()
-    //     .expect("The joystick thread being joined has panicked.");
+    gamepad_thread
+        .join()
+        .expect("The joystick thread being joined has panicked.");
 
     println!("all threads exited.");
 
