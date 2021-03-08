@@ -36,7 +36,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // create communication channel
     let (tx, rx) = channel::<Notification>(); // TODO: is channel necessary if threads are not necessary?
 
-    // setup interrupt signals
+    // interrupt watcher loop
     let is_running = Arc::new(AtomicBool::new(true));
     {
         let r = is_running.clone();
@@ -51,35 +51,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         });
     }
 
-    // listen to serial port events
-    let serial_port_thread;
+    // producer loop
+    let producer_thread;
     {
         let tx = tx.clone();
         let serial_port = Arc::clone(&serial_port);
         let is_running = is_running.clone();
-        serial_port_thread = thread::spawn(move || {
-            while is_running.load(Ordering::SeqCst) {
-                match serial_port.try_read_u8() {
-                    Ok(Some(byte)) => {
-                        println!("Received char: {}", byte as char);
-                        tx.send(Notification::SerialInput(byte)).unwrap();
-                    }
-                    Ok(None) => (),
-                    Err(_) => panic!("serial_port.try_read_u8() failed"),
-                }
-
-                // wait for some time to not consume 100% thread time
-                thread::sleep(Duration::from_millis(20)); // longer delay?
-            }
-        });
-    }
-
-    // listen to dualshock PS4 controller events
-    let gamepad_thread;
-    {
-        let tx = tx.clone();
-        let is_running = is_running.clone();
-        gamepad_thread = thread::spawn(move || {
+        producer_thread = thread::spawn(move || {
             // open joystick controller
             let mut gilrs = Gilrs::new().unwrap(); // TODO: catch errors
 
@@ -97,6 +75,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             );
 
             while is_running.load(Ordering::SeqCst) {
+                // read serial port
+                match serial_port.try_read_u8() {
+                    Ok(Some(byte)) => {
+                        println!("Received char: {}", byte as char);
+                        tx.send(Notification::SerialInput(byte)).unwrap();
+                    }
+                    Ok(None) => (),
+                    Err(_) => panic!("serial_port.try_read_u8() failed"),
+                }
+
+                // read gamepad
                 while let Some(Event {
                     id: gamepad_id,
                     event,
@@ -137,33 +126,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
 
                 // wait for some time to not consume 100% thread time
-                thread::sleep(Duration::from_millis(20)); // longer delay?
-
-                // match joystick.get_event() {
-                //     // TODO: this is problem, it is non-blocking and the loop is consuming 100% CPU time
-                //     Ok(event) => match event {
-                //         DeviceEvent::Axis(event) => {
-                //             println!("Axis event: {:?}", event);
-                //             tx.send(Notification::ControllerAxis(event)).unwrap()
-                //         }
-                //         DeviceEvent::Button(event) => {
-                //             println!("Button event: {:?}", event);
-                //             tx.send(Notification::ControllerButton(event)).unwrap()
-                //         }
-                //     },
-                //     Err(error) => match error {
-                //         joydev::Error::QueueEmpty => (),
-                //         _ => panic!(
-                //             "{}: {:?}",
-                //             "called `Result::unwrap()` on an `Err` value", &error
-                //         ),
-                //     },
-                // }
+                thread::sleep(Duration::from_millis(50)); // longer delay?
             }
         });
     }
 
-    // notification processing loop
+    // consumer loop
     {
         'consumer_loop: loop {
             /*recv() blocks*/
@@ -198,12 +166,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    serial_port_thread
+    producer_thread
         .join()
-        .expect("The serial port thread being joined has panicked.");
-    gamepad_thread
-        .join()
-        .expect("The joystick thread being joined has panicked.");
+        .expect("The producer thread being joined has panicked.");
 
     println!("all threads exited.");
 
