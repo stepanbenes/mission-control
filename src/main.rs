@@ -11,7 +11,9 @@ use std::time::Duration;
 
 use signal_hook::{consts::TERM_SIGNALS, iterator::Signals};
 
-use gilrs::{Button, Event, Gamepad, Gilrs};
+use gilrs::ff::{BaseEffect, BaseEffectType, EffectBuilder, Replay, Ticks};
+use gilrs::{Button, Event, EventType, Gamepad, Gilrs};
+
 use string_error::static_err;
 
 #[derive(Debug)]
@@ -91,12 +93,41 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             while is_running.load(Ordering::SeqCst) {
                 while let Some(Event {
-                    id: _,
+                    id: gamepad_id,
                     event,
                     time: _,
                 }) = gilrs.next_event()
                 {
                     println!("{:?}", event);
+                    match event {
+                        EventType::ButtonChanged(Button::South, _value, _nec) => {
+                            let duration = Ticks::from_ms(150);
+                            let effect = EffectBuilder::new()
+                                .add_effect(BaseEffect {
+                                    kind: BaseEffectType::Strong { magnitude: 60_000 },
+                                    scheduling: Replay {
+                                        play_for: duration,
+                                        with_delay: duration * 3,
+                                        ..Default::default()
+                                    },
+                                    envelope: Default::default(),
+                                })
+                                .add_effect(BaseEffect {
+                                    kind: BaseEffectType::Weak { magnitude: 60_000 },
+                                    scheduling: Replay {
+                                        after: duration * 2,
+                                        play_for: duration,
+                                        with_delay: duration * 3,
+                                    },
+                                    ..Default::default()
+                                })
+                                .gamepads(&[gamepad_id])
+                                .finish(&mut gilrs)
+                                .unwrap();
+                            effect.play().unwrap();
+                        }
+                        _ => {}
+                    }
                 }
 
                 // wait for some time to not consume 100% thread time
