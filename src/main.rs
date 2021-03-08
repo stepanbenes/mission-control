@@ -2,9 +2,15 @@ mod non_blocking_serial_port;
 
 use joydev::{event_codes::AbsoluteAxis, event_codes::Key, Device, DeviceEvent, GenericEvent};
 use non_blocking_serial_port::*;
-use std::sync::{mpsc::channel, Arc};
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    mpsc::channel,
+    Arc,
+};
 use std::thread;
 use std::time::Duration;
+
+use signal_hook::{consts::TERM_SIGNALS, iterator::Signals};
 
 #[derive(Debug)]
 enum Notification {
@@ -12,7 +18,7 @@ enum Notification {
     ControllerAxis(joydev::AxisEvent),
     SerialInput(u8),
     //NetworkCommand(String), // TODO: add network communication
-    CtrlC
+    TerminationSignal(i32),
 }
 
 // how to run: 1. connect dualshock4 to raspberry
@@ -23,59 +29,77 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // open serial port
     let serial_port = Arc::new(NonBlockingSerialPort::open("/dev/ttyACM0")?);
 
-    // open joistick controller
-    let device = Device::open("/dev/input/js0")?;
+    // open joystick controller
+    let joystick = Device::open("/dev/input/js0")?;
 
     // create communication channel
     let (tx, rx) = channel::<Notification>(); // TODO: is channel necessary if threads are not necessary?
 
-    // setup CTRL+C intrerrupt
+    // setup interrupt signals
+    let is_running = Arc::new(AtomicBool::new(true));
     {
+        let r = is_running.clone();
         let tx = tx.clone();
-        ctrlc::set_handler(move || { tx.send(Notification::CtrlC).unwrap(); }).expect("Error setting Ctrl-C handler");
-    }
-
-    // listen to serial port events
-    {
-        let tx = tx.clone();
-        let serial_port = Arc::clone(&serial_port);
-        thread::spawn(move || loop {
-            match serial_port.try_read_u8() {
-                Ok(Some(byte)) => {
-                    println!("Received char: {}", byte as char);
-                    tx.send(Notification::SerialInput(byte)).unwrap();
-                }
-                Ok(None) => (),
-                Err(_) => panic!("serial_port.try_read_u8() failed"),
+        let mut signals = Signals::new(TERM_SIGNALS)?;
+        thread::spawn(move || {
+            for signal in signals.forever() {
+                r.store(false, Ordering::SeqCst); // tell other threads to shut down
+                tx.send(Notification::TerminationSignal(signal)).unwrap();
+                break; // stop this thread
             }
-
-            // wait for some time to not consume 100% thread time
-            thread::sleep(Duration::from_millis(20)); // longer delay?
         });
     }
 
-    // listen to serial port events and dualshock PS4 controller events
+    // listen to serial port events
+    let serial_port_thread;
     {
         let tx = tx.clone();
-        thread::spawn(move || loop {
-            match device.get_event() { // TODO: this is problem, it is non-blocking and the loop is consuming 100% CPU time
-                Ok(event) => match event {
-                    DeviceEvent::Axis(event) => {
-                        println!("Axis event: {:?}", event);
-                        tx.send(Notification::ControllerAxis(event)).unwrap()
+        let serial_port = Arc::clone(&serial_port);
+        let is_running = is_running.clone();
+        serial_port_thread = thread::spawn(move || {
+            while is_running.load(Ordering::SeqCst) {
+                match serial_port.try_read_u8() {
+                    Ok(Some(byte)) => {
+                        println!("Received char: {}", byte as char);
+                        tx.send(Notification::SerialInput(byte)).unwrap();
                     }
-                    DeviceEvent::Button(event) => {
-                        println!("Button event: {:?}", event);
-                        tx.send(Notification::ControllerButton(event)).unwrap()
-                    }
-                },
-                Err(error) => match error {
-                    joydev::Error::QueueEmpty => (),
-                    _ => panic!(
-                        "{}: {:?}",
-                        "called `Result::unwrap()` on an `Err` value", &error
-                    ),
-                },
+                    Ok(None) => (),
+                    Err(_) => panic!("serial_port.try_read_u8() failed"),
+                }
+
+                // wait for some time to not consume 100% thread time
+                thread::sleep(Duration::from_millis(20)); // longer delay?
+            }
+        });
+    }
+
+    // listen to dualshock PS4 controller events
+    let joystick_thread;
+    {
+        let tx = tx.clone();
+        let is_running = is_running.clone();
+        joystick_thread = thread::spawn(move || {
+            while is_running.load(Ordering::SeqCst) {
+                match joystick.get_event() {
+                    // TODO: this is problem, it is non-blocking and the loop is consuming 100% CPU time
+                    Ok(event) => match event {
+                        DeviceEvent::Axis(event) => {
+                            println!("Axis event: {:?}", event);
+                            tx.send(Notification::ControllerAxis(event)).unwrap()
+                        }
+                        DeviceEvent::Button(event) => {
+                            println!("Button event: {:?}", event);
+                            tx.send(Notification::ControllerButton(event)).unwrap()
+                        }
+                    },
+                    Err(error) => match error {
+                        joydev::Error::QueueEmpty => (),
+                        _ => panic!(
+                            "{}: {:?}",
+                            "called `Result::unwrap()` on an `Err` value", &error
+                        ),
+                    },
+                }
             }
         });
     }
@@ -106,14 +130,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         }
                         _ => (),
                     },
-                    Notification::CtrlC => break 'consumer_loop,
+                    Notification::TerminationSignal(signal) => {
+                        eprintln!("Received signal {:?}", signal);
+                        break 'consumer_loop;
+                    }
                 }
             }
         }
     }
 
-    // TODO: serial port may not be disposed ?!?
-    drop(serial_port);
+    serial_port_thread
+        .join()
+        .expect("The serial port thread being joined has panicked.");
+    joystick_thread
+        .join()
+        .expect("The joystick thread being joined has panicked.");
+
+    println!("all threads exited.");
 
     Ok(())
 }
