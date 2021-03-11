@@ -31,7 +31,7 @@ enum Notification {
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // open serial port
-    let serial_port = Arc::new(NonBlockingSerialPort::open("/dev/ttyACM0")?);
+    let serial_port = Arc::new(NonBlockingSerialPort::open("/dev/ttyACM0")?); // TODO: move Arc into NonBlockingSerialPort struct, it will be nicer encapsulation (maybe rename to SharedSerialPort?)
 
     // create communication channel
     let (tx, rx) = channel::<Notification>(); // TODO: is channel necessary if threads are not necessary?
