@@ -96,10 +96,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 .connected_gamepad(gamepad_id)
                                 .expect("gamepad should be connected but it is not.");
                             println!(
-                                "{} is connected; power info: {:?}; force feedback is supported: {};",
+                                "{} is connected; power info: {:?}; force feedback: {};",
                                 gamepad.name(),
                                 gamepad.power_info(),
-                                gamepad.is_ff_supported()
+                                if gamepad.is_ff_supported() {
+                                    "supported"
+                                } else {
+                                    "not supported"
+                                }
                             );
                         }
                         Disconnected => {
