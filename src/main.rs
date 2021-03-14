@@ -12,16 +12,16 @@ use std::time::Duration;
 use signal_hook::{consts::TERM_SIGNALS, iterator::Signals};
 
 use gilrs::ff::{BaseEffect, BaseEffectType, EffectBuilder, Replay, Ticks};
-use gilrs::{Button, Event, EventType, Gamepad, Gilrs};
+use gilrs::{Button, Event, EventType::*, Gilrs};
 
-use string_error::static_err;
+//use string_error::static_err;
 
 #[derive(Debug)]
 enum Notification {
     // ControllerButton(joydev::ButtonEvent),
     // ControllerAxis(joydev::AxisEvent),
     SerialInput(u8),
-    //NetworkCommand(String), // TODO: add network communication
+    //NetworkMessage(String), // TODO: add network communication (use tungstenite)
     TerminationSignal(i32),
 }
 
@@ -34,7 +34,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let serial_port = Arc::new(NonBlockingSerialPort::open("/dev/ttyACM0")?); // TODO: move Arc into NonBlockingSerialPort struct, it will be nicer encapsulation (maybe rename to SharedSerialPort?)
 
     // create communication channel
-    let (tx, rx) = channel::<Notification>(); // TODO: is channel necessary if threads are not necessary?
+    let (tx, rx) = channel::<Notification>();
 
     // interrupt watcher loop
     let is_running = Arc::new(AtomicBool::new(true));
@@ -59,32 +59,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let is_running = is_running.clone();
         producer_thread = thread::spawn(move || {
             // open joystick controller
-            let mut gilrs = Gilrs::new().unwrap(); // TODO: catch errors
-
-            // get first connected gamepad
-            let (_, gamepad) = gilrs
-                .gamepads()
-                .next()
-                .ok_or(static_err("No gamepad is connected."))
-                .unwrap(); // TODO: catch errors
-            println!(
-                "{} is {:?}; ff: {}",
-                gamepad.name(),
-                gamepad.power_info(),
-                gamepad.is_ff_supported()
-            );
+            let mut gilrs = Gilrs::new().expect("Gilrs could not be created");
 
             while is_running.load(Ordering::SeqCst) {
                 // read serial port
                 match serial_port.try_read_u8() {
                     Ok(Some(byte)) => {
                         println!("Received char: {}", byte as char);
-                        tx.send(Notification::SerialInput(byte)).unwrap();
+                        tx.send(Notification::SerialInput(byte))
+                            .expect("tx.send failed.");
                     }
                     Ok(None) => (),
                     Err(_) => panic!("serial_port.try_read_u8() failed"),
                 }
-
                 // read gamepad
                 while let Some(Event {
                     id: gamepad_id,
@@ -94,7 +81,26 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 {
                     println!("{:?}", event);
                     match event {
-                        EventType::ButtonChanged(Button::South, _value, _nec) => {
+                        Connected => {
+                            let gamepad = gilrs
+                                .connected_gamepad(gamepad_id)
+                                .expect("gamepad should be connected but it is not.");
+                            println!(
+                                "{} is connected; power info: {:?}; force feedback is supported: {};",
+                                gamepad.name(),
+                                gamepad.power_info(),
+                                gamepad.is_ff_supported()
+                            );
+                        }
+                        Disconnected => {
+                            let disconnected_gamepad = gilrs.gamepad(gamepad_id);
+                            println!("{} disconnected;", disconnected_gamepad.name());
+                        }
+                        ButtonPressed(_, _) => {}
+                        ButtonRepeated(_, _) => {}
+                        ButtonReleased(_, _) => {}
+                        AxisChanged(_axis, _value, _code) => {}
+                        ButtonChanged(Button::South, _value, _code) => {
                             let duration = Ticks::from_ms(150);
                             let effect = EffectBuilder::new()
                                 .add_effect(BaseEffect {
@@ -119,9 +125,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 .finish(&mut gilrs)
                                 .unwrap();
                             effect.play().unwrap();
-                            thread::sleep(Duration::from_secs(11));
+                            thread::sleep(Duration::from_secs(11)); // must wait to finishe effect before reading next event
                         }
-                        _ => {}
+                        ButtonChanged(_, _, _) => {}
+                        Dropped => { /*ignore*/ }
                     }
                 }
 
