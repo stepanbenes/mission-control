@@ -67,7 +67,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             produce_serial_port_notifications(&serial_port, &tx);
             produce_gamepad_notifications(&mut gilrs, &tx);
             consume_all_notifications(&rx, &serial_port, &mut gilrs);
-            println!("tick");
+
             thread::sleep(Duration::from_millis(20)); // longer delay?
         }
     }
