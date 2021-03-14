@@ -23,7 +23,17 @@ enum Notification {
     SerialInput(u8),
     //NetworkMessage(String), // TODO: add network communication (use tungstenite)
     TerminationSignal(i32),
+    //ImageTaken { uri: String },
+    //DistanceMeasured
+    //ArrivedToPosition
 }
+
+// #[derive(Debug)]
+// enum Command {
+//     TakeImage,
+//     MeasureDistance,
+//     GoToPosition
+// }
 
 // how to run: 1. connect dualshock4 to raspberry
 //             2. sudo ds4drv --hidraw &
