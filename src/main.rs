@@ -12,13 +12,13 @@ use std::time::Duration;
 use signal_hook::{consts::TERM_SIGNALS, iterator::Signals};
 
 use gilrs::ff::{BaseEffect, BaseEffectType, EffectBuilder, Replay, Ticks};
-use gilrs::{Button, Event, EventType::*, Gilrs};
+use gilrs::{Button, Event, EventType::*, GamepadId, Gilrs};
 
 //use string_error::static_err;
 
 #[derive(Debug)]
 enum Notification {
-    GamepadButton(Button),
+    GamepadButton(Button, GamepadId),
     //GamepadAxis(joydev::AxisEvent),
     SerialInput(u8),
     //NetworkMessage(String), // TODO: add network communication (use tungstenite)
@@ -127,39 +127,14 @@ fn produce_gamepad_notifications(gilrs: &mut Gilrs, sender: &Sender<Notification
                 println!("{} disconnected;", disconnected_gamepad.name());
             }
             ButtonPressed(button, _) => {
-                sender.send(Notification::GamepadButton(button)).unwrap();
+                sender
+                    .send(Notification::GamepadButton(button, gamepad_id))
+                    .unwrap();
             }
             ButtonRepeated(_, _) => {}
             ButtonReleased(_, _) => {}
             AxisChanged(_axis, _value, _code) => {}
-            ButtonChanged(Button::South, _value, _code) => {
-                let duration = Ticks::from_ms(150);
-                let effect = EffectBuilder::new()
-                    .add_effect(BaseEffect {
-                        kind: BaseEffectType::Strong { magnitude: 60_000 },
-                        scheduling: Replay {
-                            play_for: duration,
-                            with_delay: duration * 3,
-                            ..Default::default()
-                        },
-                        envelope: Default::default(),
-                    })
-                    .add_effect(BaseEffect {
-                        kind: BaseEffectType::Weak { magnitude: 60_000 },
-                        scheduling: Replay {
-                            after: duration * 2,
-                            play_for: duration,
-                            with_delay: duration * 3,
-                        },
-                        ..Default::default()
-                    })
-                    .gamepads(&[gamepad_id])
-                    .finish(gilrs)
-                    .unwrap();
-                effect.play().unwrap();
-                thread::sleep(Duration::from_secs(11)); // must wait to finishe effect before reading next event
-            }
-            ButtonChanged(_, _, _) => {}
+            ButtonChanged(_button, _value, _code) => {}
             Dropped => { /*ignore*/ }
         }
     }
@@ -168,14 +143,14 @@ fn produce_gamepad_notifications(gilrs: &mut Gilrs, sender: &Sender<Notification
 fn consume_all_notifications(
     receiver: &Receiver<Notification>,
     serial_port: &NonBlockingSerialPort,
-    _gilrs: &mut Gilrs, // TODO: use for force feedback
+    gilrs: &mut Gilrs,
 ) {
     /*recv() blocks*/
     while let Ok(notification) = receiver.try_recv() {
         println!("notification: {:?}", notification);
         match notification {
             Notification::SerialInput(_byte) => {}
-            Notification::GamepadButton(button) => {
+            Notification::GamepadButton(button, gamepad_id) => {
                 match button {
                     //see: https://gitlab.com/gm666q/joydev-rs/-/blob/master/joydev/src/event_codes/key.rs
                     Button::North => {
@@ -184,9 +159,40 @@ fn consume_all_notifications(
                     Button::South => {
                         serial_port.write_u8(b's').unwrap();
                     }
+                    Button::East => {
+                        rumble_gamepad(gamepad_id, gilrs);
+                    }
                     _ => {}
                 }
             }
         }
     }
+}
+
+fn rumble_gamepad(gamepad_id: GamepadId, gilrs: &mut Gilrs) {
+    let duration = Ticks::from_ms(150);
+    let effect = EffectBuilder::new()
+        .add_effect(BaseEffect {
+            kind: BaseEffectType::Strong { magnitude: 60_000 },
+            scheduling: Replay {
+                play_for: duration,
+                with_delay: duration * 3,
+                ..Default::default()
+            },
+            envelope: Default::default(),
+        })
+        .add_effect(BaseEffect {
+            kind: BaseEffectType::Weak { magnitude: 60_000 },
+            scheduling: Replay {
+                after: duration * 2,
+                play_for: duration,
+                with_delay: duration * 3,
+            },
+            ..Default::default()
+        })
+        .gamepads(&[gamepad_id])
+        .finish(gilrs)
+        .unwrap();
+    effect.play().unwrap();
+    thread::sleep(Duration::from_secs(1));
 }
