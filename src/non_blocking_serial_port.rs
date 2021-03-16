@@ -1,5 +1,3 @@
-extern crate mio_serial;
-
 use mio_serial::SerialPort;
 use std::io::Error;
 use std::io::Read;
