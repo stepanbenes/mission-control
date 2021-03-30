@@ -65,6 +65,9 @@ void loop() {
         {
           mode = Mode::IndefiniteConstantSpeed;
 
+          turnOnEngine1();
+          turnOnEngine2();
+
           // TODO: set speed, read value from serial
           stepper1.setSpeed(MAX_SPEED);
           stepper2.setSpeed(MAX_SPEED);
@@ -73,6 +76,10 @@ void loop() {
       case 'a':
         {
           mode = Mode::AccelerateTowardsDestination;
+
+          turnOnEngine1();
+          turnOnEngine2();
+          
           stepper1.setMaxSpeed(MAX_SPEED);
           stepper1.setAcceleration(50.0);
           stepper1.setSpeed(0);
@@ -91,8 +98,8 @@ void loop() {
       case 's':
         {
           mode = Mode::Off;
-          stepper1.stop();
-          stepper2.stop();
+          turnOffEngine1();
+          turnOffEngine2();
         }
         break;
       case 'd':
@@ -126,6 +133,8 @@ void loop() {
     case Mode::AccelerateTowardsDestination:
       if (stepper1.distanceToGo() == 0 && stepper2.distanceToGo() == 0) {
         mode = Mode::Off;
+        turnOffEngine1();
+        turnOffEngine2();
         Serial.println("stop");
       }
       else {
@@ -134,4 +143,25 @@ void loop() {
       }
       break;
   }
+}
+
+void turnOnEngine1() {
+  stepper1.enableOutputs();
+}
+
+void turnOnEngine2() {
+  stepper2.enableOutputs();
+}
+
+void turnOffEngine1() {
+  stepper1.stop();
+  // important! if output is not disabled, stepper motor draws current even if not moving
+  // (and applies torque, but it is not needed in this application)
+  // see: http://www.airspayce.com/mikem/arduino/AccelStepper/classAccelStepper.html#a3591e29a236e2935afd7f64ff6c22006
+  stepper1.disableOutputs();
+}
+
+void turnOffEngine2() {
+  stepper2.stop();
+  stepper2.disableOutputs(); // important!
 }
