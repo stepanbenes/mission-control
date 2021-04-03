@@ -1,6 +1,7 @@
 // https://github.com/waspinator/AccelStepper/blob/master/src/AccelStepper.h
 // https://dronebotworkshop.com/stepper-motors-with-arduino/
 // https://www.youtube.com/watch?v=0qwrnUeSpYQ
+// https://peppe8o.com/connecting-raspberry-pi-zero-w-to-arduino-only-via-terminal/
 
 #include "limits.h"
 #include <AccelStepper.h>
