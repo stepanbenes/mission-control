@@ -1,5 +1,8 @@
+mod common;
+mod deep_space_network;
 mod non_blocking_serial_port;
 
+use common::*;
 use non_blocking_serial_port::*;
 use std::sync::{
     atomic::{AtomicBool, Ordering},
@@ -14,26 +17,9 @@ use signal_hook::{consts::TERM_SIGNALS, iterator::Signals};
 use gilrs::ff::{BaseEffect, BaseEffectType, EffectBuilder, Replay, Ticks};
 use gilrs::{Button, Event, EventType::*, GamepadId, Gilrs};
 
+use deep_space_network::DeepSpaceAntenna;
+
 //use string_error::static_err;
-
-#[derive(Debug)]
-enum Notification {
-    GamepadButton(Button, GamepadId),
-    //GamepadAxis(joydev::AxisEvent),
-    SerialInput(u8),
-    //NetworkMessage(String), // TODO: add network communication (use tungstenite)
-    //TerminationSignal(i32),
-    //ImageTaken { uri: String },
-    //DistanceMeasured
-    //ArrivedToPosition
-}
-
-// #[derive(Debug)]
-// enum Command {
-//     TakeImage,
-//     MeasureDistance,
-//     GoToPosition
-// }
 
 // how to run: 1. connect dualshock4 to raspberry
 //             2. sudo ds4drv --hidraw &
@@ -43,7 +29,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // open serial port
     let serial_port = NonBlockingSerialPort::open("/dev/ttyACM0")?;
 
-    // create communication channel
+    // init gamepads
+    let mut gilrs = Gilrs::new().expect("Gilrs could not be created");
+
+    // connect to deep space network
+    let mut antenna = DeepSpaceAntenna::connect("192.168.1.42:5003", "rover-hub")?;
+
+    // create internal communication channel
     let (tx, rx) = channel::<Notification>();
 
     // interrupt watcher loop
@@ -62,10 +54,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // consumer loop
     {
-        let mut gilrs = Gilrs::new().expect("Gilrs could not be created");
         while is_running.load(Ordering::SeqCst) {
-            produce_serial_port_notifications(&serial_port, &tx);
-            produce_gamepad_notifications(&mut gilrs, &tx);
+            antenna.process_messages(&tx);
+            process_serial_port_messages(&serial_port, &tx);
+            process_gamepad_events(&mut gilrs, &tx);
             consume_all_notifications(&rx, &serial_port, &mut gilrs);
 
             thread::sleep(Duration::from_millis(20)); // longer delay?
@@ -82,7 +74,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn produce_serial_port_notifications(
+fn process_serial_port_messages(
     serial_port: &NonBlockingSerialPort,
     sender: &Sender<Notification>,
 ) {
@@ -98,7 +90,7 @@ fn produce_serial_port_notifications(
     }
 }
 
-fn produce_gamepad_notifications(gilrs: &mut Gilrs, sender: &Sender<Notification>) {
+fn process_gamepad_events(gilrs: &mut Gilrs, sender: &Sender<Notification>) {
     while let Some(Event {
         id: gamepad_id,
         event,
