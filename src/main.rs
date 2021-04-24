@@ -162,7 +162,7 @@ fn consume_all_notifications(
                 }
             }
             Notification::GamepadAxis(axis, value, _gamepad_id) => {
-                let speed = (value / 32767_f32) as i16;
+                let speed = (value * 600_f32) as i16;
                 match axis {
                     Axis::LeftStickY => {
                         let message = format!("l{}\n", speed);
