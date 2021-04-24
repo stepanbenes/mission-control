@@ -40,12 +40,16 @@ impl NonBlockingSerialPort {
 
     pub fn write_u8(&self, data: u8) -> Result<usize, Error> {
         let buffer = [data];
-        let num_bytes = self.port.lock().unwrap().write(&buffer)?;
+        let mut port = self.port.lock().unwrap();
+        let num_bytes = port.write(&buffer)?;
+        port.flush()?;
         Ok(num_bytes)
     }
 
     pub fn write_text(&self, text: &str) -> Result<usize, Error> {
-        let num_bytes = self.port.lock().unwrap().write(text.as_bytes())?;
+        let mut port = self.port.lock().unwrap();
+        let num_bytes = port.write(text.as_bytes())?;
+        port.flush()?;
         Ok(num_bytes)
     }
 }
