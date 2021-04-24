@@ -62,6 +62,22 @@ void loop() {
     char c = Serial.read();
     switch (c)
     {
+      case 'l':
+        {
+          long speed = Serial.parseInt();
+          mode = Mode::IndefiniteConstantSpeed;
+          turnOnEngine1();
+          stepper1.setSpeed(speed);
+          break;
+        }
+      case 'r':
+        {
+          long speed = Serial.parseInt();
+          mode = Mode::IndefiniteConstantSpeed;
+          turnOnEngine2();
+          stepper2.setSpeed(speed);
+          break;
+        }
       case 'f':
         {
           mode = Mode::IndefiniteConstantSpeed;
