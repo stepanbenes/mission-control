@@ -15,7 +15,7 @@ use std::time::Duration;
 use signal_hook::{consts::TERM_SIGNALS, iterator::Signals};
 
 use gilrs::ff::{BaseEffect, BaseEffectType, EffectBuilder, Replay, Ticks};
-use gilrs::{Button, Event, EventType::*, GamepadId, Gilrs};
+use gilrs::{Button, Axis, Event, EventType::*, GamepadId, Gilrs};
 
 use deep_space_network::DeepSpaceAntenna;
 
@@ -125,7 +125,11 @@ fn process_gamepad_events(gilrs: &mut Gilrs, sender: &Sender<Notification>) {
             }
             ButtonRepeated(_, _) => {}
             ButtonReleased(_, _) => {}
-            AxisChanged(_axis, _value, _code) => {}
+            AxisChanged(axis, value, _code) => {
+                sender
+                    .send(Notification::GamepadAxis(axis, value, gamepad_id))
+                    .unwrap();
+            }
             ButtonChanged(_button, _value, _code) => {}
             Dropped => { /*ignore*/ }
         }
@@ -153,6 +157,24 @@ fn consume_all_notifications(
                     }
                     Button::East => {
                         rumble_gamepad(gamepad_id, gilrs);
+                    }
+                    _ => {}
+                }
+            }
+            Notification::GamepadAxis(axis, value, _gamepad_id) => {
+                let speed = (value / 32767_f32) as i16;
+                match axis {
+                    Axis::LeftStickY => {
+                        let message = format!("l{}\n", speed);
+                        for byte in message.as_bytes() {
+                            serial_port.write_u8(*byte).unwrap();
+                        }
+                    }
+                    Axis::RightStickY => {
+                        let message = format!("r{}\n", speed);
+                        for byte in message.as_bytes() {
+                            serial_port.write_u8(*byte).unwrap();
+                        }
                     }
                     _ => {}
                 }

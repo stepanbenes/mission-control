@@ -1,9 +1,9 @@
-use gilrs::{Button, GamepadId};
+use gilrs::{Button, Axis, GamepadId};
 
 #[derive(Debug)]
 pub enum Notification {
     GamepadButton(Button, GamepadId),
-    //GamepadAxis(joydev::AxisEvent),
+    GamepadAxis(Axis, f32, GamepadId),
     SerialInput(u8),
     //NetworkMessage(String), // TODO: add network communication (use tungstenite)
     //TerminationSignal(i32),
