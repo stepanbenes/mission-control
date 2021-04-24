@@ -43,4 +43,9 @@ impl NonBlockingSerialPort {
         let num_bytes = self.port.lock().unwrap().write(&buffer)?;
         Ok(num_bytes)
     }
+
+    pub fn write_text(&self, text: &str) -> Result<usize, Error> {
+        let num_bytes = self.port.lock().unwrap().write(text.as_bytes())?;
+        Ok(num_bytes)
+    }
 }

@@ -166,15 +166,11 @@ fn consume_all_notifications(
                 match axis {
                     Axis::LeftStickY => {
                         let message = format!("l{}\n", speed);
-                        for byte in message.as_bytes() {
-                            serial_port.write_u8(*byte).unwrap();
-                        }
+                        serial_port.write_text(&message).unwrap();
                     }
                     Axis::RightStickY => {
                         let message = format!("r{}\n", speed);
-                        for byte in message.as_bytes() {
-                            serial_port.write_u8(*byte).unwrap();
-                        }
+                        serial_port.write_text(&message).unwrap();
                     }
                     _ => {}
                 }
