@@ -150,10 +150,10 @@ fn consume_all_notifications(
                 match button {
                     //see: https://gitlab.com/gm666q/joydev-rs/-/blob/master/joydev/src/event_codes/key.rs
                     Button::North => {
-                        serial_port.write_u8(b'f').unwrap();
+                        serial_port.write_u8(b'f').unwrap(); // TODO: resolve WouldBlock error
                     }
                     Button::South => {
-                        serial_port.write_u8(b's').unwrap();
+                        serial_port.write_u8(b's').unwrap(); // TODO: resolve WouldBlock error
                     }
                     Button::East => {
                         rumble_gamepad(gamepad_id, gilrs);
@@ -166,11 +166,11 @@ fn consume_all_notifications(
                 match axis {
                     Axis::LeftStickY => {
                         let message = format!("l{}\n", speed);
-                        serial_port.write_text(&message).unwrap();
+                        serial_port.write_text(&message).unwrap(); // TODO: resolve WouldBlock error
                     }
                     Axis::RightStickY => {
                         let message = format!("r{}\n", speed);
-                        serial_port.write_text(&message).unwrap();
+                        serial_port.write_text(&message).unwrap(); // TODO: resolve WouldBlock error
                     }
                     _ => {}
                 }
