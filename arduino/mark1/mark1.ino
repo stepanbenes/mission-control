@@ -71,7 +71,7 @@ void loop() {
 
           // TODO: set speed, read value from serial
           stepper1.setSpeed(MAX_SPEED);
-          stepper2.setSpeed(MAX_SPEED);
+          stepper2.setSpeed(-MAX_SPEED);
         }
         break;
       case 'a':
@@ -89,11 +89,11 @@ void loop() {
           // TODO: set desired position, read value from serial
           stepper1.moveTo(2048); // one turn has 2048 full steps.
     
-          stepper2.setMaxSpeed(MAX_SPEED);
+          stepper2.setMaxSpeed(-MAX_SPEED);
           stepper2.setAcceleration(50.0);
           stepper2.setSpeed(0);
           stepper2.setCurrentPosition(0);
-          stepper2.moveTo(2048); // one turn has 2048 full steps.
+          stepper2.moveTo(-2048); // one turn has 2048 full steps.
         }
         break;
       case 's':
