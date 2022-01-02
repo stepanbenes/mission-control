@@ -26,6 +26,7 @@ struct NetworkMessage {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
 struct MethodInvocationDescriptor {
     /// The name of the remote method.
     method_name: String,
@@ -115,7 +116,7 @@ impl DeepSpaceAntenna {
                     break 'message_loop;
                 }
                 Err(fatal_error) => {
-                    panic!(fatal_error);
+                    panic!("{}", fatal_error);
                 }
             }
         }
