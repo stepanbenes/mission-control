@@ -49,7 +49,7 @@ const bool SERIAL_DEBUG_SHOW_SONAR = false;
 
 // Voltage of the main battery, use this to check that it is correctly calibrated. 
 // adjust the "VOLTAGE_CALIB_FACTOR" until this reads the same voltage as a connected multimeter
-const bool SERIAL_DEBUG_SHOW_BATTERY_VOLTAGE = true; 
+const bool SERIAL_DEBUG_SHOW_BATTERY_VOLTAGE = false;
 
 // The time in microseconds to make one cycly of the main loop
-const bool SERIAL_DEBUG_SHOW_LOOPTIME_US = true;   
+const bool SERIAL_DEBUG_SHOW_LOOPTIME_US = false;
