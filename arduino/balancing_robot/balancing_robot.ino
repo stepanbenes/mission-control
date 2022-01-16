@@ -35,7 +35,6 @@ unsigned long loopStartTime = 0;    // unit: microseconds
 float deltaTime = 0;                // unit: seconds
 
 Mpu6050 imu = Mpu6050(MPU6050_ADDRESS);
-ComplementaryFilter angleFilter; 
 
 float currentLeanAngle = 0.0f;
 float voltage = 0;              // battery voltage
@@ -95,11 +94,6 @@ void setup() {
   digitalWrite(LEFT_ENABLE_PIN, HIGH); // disable the stepper motors
   digitalWrite(RIGHT_ENABLE_PIN, HIGH); // disable the stepper motors
 
-  attachInterrupt(digitalPinToInterrupt(SONAR1_ECHO), sonar1received, FALLING);
-  attachInterrupt(digitalPinToInterrupt(SONAR2_ECHO), sonar2received, FALLING);
-  attachInterrupt(digitalPinToInterrupt(SONAR3_ECHO), sonar3received, FALLING);
-  attachInterrupt(digitalPinToInterrupt(SONAR4_ECHO), sonar4received, FALLING);
-
   Wire.begin();                         
   Wire.setClock(400000);     // 400000 =  400kHz I2C clock.
   imu.init(); 
@@ -129,9 +123,9 @@ void loop() {
   // calculate the angle of the robot based in accelerometer and gyro data. 
   // This is done with a simple complimentary filter. See the "complimentaryFilter.h" -file. 
   float accAngle = atan2(-imu.getAccelX(), imu.getAccelZ()) * 57;       
-  currentLeanAngle = angleFilter.calculate(accAngle, imu.getGyroY(), deltaTime);  
+
   if (SERIAL_DEBUG_SHOW_ANGLE) {
-    Serial.println(currentLeanAngle);
+    Serial.println(accAngle);
   }
 
     setMotorSpeed(0, 2);  // set the speeds of the motors to zero

@@ -41,7 +41,7 @@ const long SERIAL_BAUDRATE = 250000;
 
 // The angle of the robot, close to 0 is stright up, 
 // negative values leaning forward, positive values leaning backwards. 
-const bool SERIAL_DEBUG_SHOW_ANGLE = false; 
+const bool SERIAL_DEBUG_SHOW_ANGLE = true; 
 
 // Show the normalized sonar distances of the four sonar sensors
 // 0 is no abstacle detected, 1 means obstable is very close
@@ -49,7 +49,7 @@ const bool SERIAL_DEBUG_SHOW_SONAR = false;
 
 // Voltage of the main battery, use this to check that it is correctly calibrated. 
 // adjust the "VOLTAGE_CALIB_FACTOR" until this reads the same voltage as a connected multimeter
-const bool SERIAL_DEBUG_SHOW_BATTERY_VOLTAGE = false; 
+const bool SERIAL_DEBUG_SHOW_BATTERY_VOLTAGE = true; 
 
 // The time in microseconds to make one cycly of the main loop
-const bool SERIAL_DEBUG_SHOW_LOOPTIME_US = false;   
+const bool SERIAL_DEBUG_SHOW_LOOPTIME_US = true;   
