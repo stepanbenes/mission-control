@@ -37,7 +37,7 @@ const float TURN_ACCELERATION = 0.003;
 
 // Serial consol debug flags. Enable to show values in the serial console. 
 // to make it easy to read, only enable on at a time. 
-const long SERIAL_BAUDRATE = 230400; 
+const long SERIAL_BAUDRATE = 9600; 
 
 // The angle of the robot, close to 0 is stright up, 
 // negative values leaning forward, positive values leaning backwards. 
