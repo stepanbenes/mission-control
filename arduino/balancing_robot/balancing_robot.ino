@@ -32,7 +32,7 @@
 #include "complementaryFilter.h"    // for accelerometer and gyro data fusion
 #include "pid.h"                    // PID controller
 #include "button.h"                 // for pushbuttons
-#include "RGBled.h"                 // controls the RGB LED "eyes", used as status indicators
+#include "rgbled.h"                 // controls the RGB LED "eyes", used as status indicators
 
 long lastLoopTime = 0;              // unit: microseconds
 unsigned long loopStartTime = 0;    // unit: microseconds

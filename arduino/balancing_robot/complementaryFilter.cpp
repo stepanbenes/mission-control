@@ -8,7 +8,7 @@
 
 
 #include "Arduino.h"
-#include "ComplementaryFilter.h"
+#include "complementaryFilter.h"
 
 ComplementaryFilter::ComplementaryFilter()
 {

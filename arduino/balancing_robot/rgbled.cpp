@@ -3,7 +3,7 @@ A simple class to control an RGB LED using three pins.
 */
 
 #include "Arduino.h"
-#include "RGBled.h"
+#include "rgbled.h"
 
 RGBled::RGBled(int Rpin, int Gpin, int Bpin) {
   _Rpin = Rpin; 

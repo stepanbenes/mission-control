@@ -4,7 +4,7 @@
 */
 
 #include "Arduino.h"
-#include "Button.h"
+#include "button.h"
 
 Button::Button(int pin) {
   _buttonPin = pin; 
