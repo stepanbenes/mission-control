@@ -37,11 +37,11 @@ const float TURN_ACCELERATION = 0.003;
 
 // Serial consol debug flags. Enable to show values in the serial console. 
 // to make it easy to read, only enable on at a time. 
-const long SERIAL_BAUDRATE = 9600; 
+const long SERIAL_BAUDRATE = 250000; 
 
 // The angle of the robot, close to 0 is stright up, 
 // negative values leaning forward, positive values leaning backwards. 
-const bool SERIAL_DEBUG_SHOW_ANGLE = true; 
+const bool SERIAL_DEBUG_SHOW_ANGLE = false; 
 
 // Show the normalized sonar distances of the four sonar sensors
 // 0 is no abstacle detected, 1 means obstable is very close
@@ -49,7 +49,7 @@ const bool SERIAL_DEBUG_SHOW_SONAR = false;
 
 // Voltage of the main battery, use this to check that it is correctly calibrated. 
 // adjust the "VOLTAGE_CALIB_FACTOR" until this reads the same voltage as a connected multimeter
-const bool SERIAL_DEBUG_SHOW_BATTERY_VOLTAGE = true; 
+const bool SERIAL_DEBUG_SHOW_BATTERY_VOLTAGE = false; 
 
 // The time in microseconds to make one cycly of the main loop
-const bool SERIAL_DEBUG_SHOW_LOOPTIME_US = true;   
+const bool SERIAL_DEBUG_SHOW_LOOPTIME_US = false;   
