@@ -41,7 +41,7 @@ const long SERIAL_BAUDRATE = 9600;
 
 // The angle of the robot, close to 0 is stright up, 
 // negative values leaning forward, positive values leaning backwards. 
-const bool SERIAL_DEBUG_SHOW_ANGLE = false; 
+const bool SERIAL_DEBUG_SHOW_ANGLE = true; 
 
 // Show the normalized sonar distances of the four sonar sensors
 // 0 is no abstacle detected, 1 means obstable is very close
