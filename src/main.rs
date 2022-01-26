@@ -1,15 +1,14 @@
    
 //#![warn(rust_2018_idioms)]
 
-mod gamepad;
-
 use futures::stream::StreamExt;
 use std::{env, io::{self, BufRead}, str};
 use tokio_util::codec::{Decoder, Encoder, LinesCodec, FramedRead, Framed};
 
-use bytes::BytesMut;
 use tokio_serial::{ SerialStream, SerialPortBuilderExt };
 use futures::sink::SinkExt;
+
+use stick::{Controller, Event, Listener};
 
 #[cfg(unix)]
 const DEFAULT_TTY: &str = "/dev/ttyUSB0";
@@ -46,9 +45,6 @@ const DEFAULT_TTY: &str = "COM1";
 #[tokio::main]
 async fn main() -> tokio_serial::Result<()> {
 
-    gamepad::event_loop().await;
-
-
     let mut args = env::args();
     let tty_path = args.nth(1).unwrap_or_else(|| DEFAULT_TTY.into());
 
@@ -71,6 +67,8 @@ async fn main() -> tokio_serial::Result<()> {
 
     //println!("hello");
 
+    let mut gamepadListener = Listener::default();
+
     loop {
         tokio::select! {
             serial_line = read_serial_line(&mut io) => {
@@ -81,6 +79,9 @@ async fn main() -> tokio_serial::Result<()> {
                 let line = stdin_line.expect("Failed to read line from stdin");
                 println!("stdin: {}", line);
                 //io.send(line).await.expect("Failed to send text");
+            },
+            controller = &mut gamepadListener => {
+                println!("{:?}", controller);
             },
         }
         println!("---");

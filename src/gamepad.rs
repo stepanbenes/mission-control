@@ -1,5 +1,3 @@
-use pasts::Loop;
-use std::task::Poll::{self, Pending, Ready};
 use stick::{Controller, Event, Listener};
 
 type Exit = usize;
