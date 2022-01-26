@@ -2,7 +2,7 @@
 #![warn(rust_2018_idioms)]
 
 use futures::stream::StreamExt;
-use std::{env, io, str};
+use std::{env, io::{self, BufRead}, str};
 use tokio_util::codec::{Decoder, Encoder, LinesCodec, FramedRead, Framed};
 
 use bytes::BytesMut;
@@ -60,13 +60,18 @@ async fn main() -> tokio_serial::Result<()> {
     //     io.send("pi".to_string()).await.expect("Failed to send text");
     // }
 
+    
+
     loop {
         tokio::select! {
-            Ok(stdin_line) = do_the_line() => {
-                io.send(stdin_line).await.expect("Failed to send text");
+            stdin_line = do_the_line() => {
+                let line = stdin_line.expect("Failed to read line from stdin");
+                println!("stdin: {}", line);
+                io.send(line).await.expect("Failed to send text");
             },
-            Some(Ok(serial_line)) = io.next() => {
-                println!("{}", serial_line);
+            serial_line = io.next() => {
+                let line = serial_line.unwrap().expect("Failed to read line from serial");
+                println!("serial: {}", line);
             }
         }
     }
@@ -76,7 +81,9 @@ async fn main() -> tokio_serial::Result<()> {
 
 async fn do_the_line() -> Result<String, Box<dyn std::error::Error>> {
     let stdin = tokio::io::stdin();
+    let mut line = String::new();
     let mut reader = FramedRead::new(stdin, LinesCodec::new());
+    
     let line = reader.next().await.transpose()?.unwrap();
     Ok(line)
 }
