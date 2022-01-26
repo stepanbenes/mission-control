@@ -69,7 +69,11 @@ async fn main() -> tokio_serial::Result<()> {
 
     //println!("hello");
 
-    let mut controller = Listener::default().await;
+    let mut controllers: Vec<_> = Vec::<Controller>::new();
+    
+    controllers.push(Listener::default().await);
+    controllers.push(Listener::default().await);
+    controllers.push(Listener::default().await);
 
     loop {
         tokio::select! {
@@ -88,7 +92,7 @@ async fn main() -> tokio_serial::Result<()> {
                     Event::Disconnect => {
                     }
                     Event::ActionA(pressed) => {
-                        controller.rumble(f32::from(u8::from(pressed)));
+                        controller.rumble(1.0f32);
                     }
                     Event::ActionB(pressed) => {
                         io.send(format!("{}", pressed)).await.expect("Failed to send text");
