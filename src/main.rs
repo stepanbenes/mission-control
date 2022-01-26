@@ -1,208 +1,61 @@
-mod common;
-mod deep_space_network;
-mod non_blocking_serial_port;
+   
+#![warn(rust_2018_idioms)]
 
-use common::*;
-use non_blocking_serial_port::*;
-use std::sync::{
-    atomic::{AtomicBool, Ordering},
-    mpsc::{channel, Receiver, Sender},
-    Arc,
-};
-use std::thread;
-use std::time::Duration;
+use futures::stream::StreamExt;
+use std::{env, io, str};
+use tokio_util::codec::{Decoder, Encoder};
 
-use signal_hook::{consts::TERM_SIGNALS, iterator::Signals};
+use bytes::BytesMut;
+use tokio_serial::SerialPortBuilderExt;
 
-use gilrs::ff::{BaseEffect, BaseEffectType, EffectBuilder, Replay, Ticks};
-use gilrs::{Button, Axis, Event, EventType::*, GamepadId, Gilrs};
+#[cfg(unix)]
+const DEFAULT_TTY: &str = "/dev/ttyACM0";
+#[cfg(windows)]
+const DEFAULT_TTY: &str = "COM1";
 
-use deep_space_network::DeepSpaceAntenna;
+struct LineCodec;
 
-//use string_error::static_err;
+impl Decoder for LineCodec {
+    type Item = String;
+    type Error = io::Error;
 
-// how to run: 1. connect dualshock4 to raspberry
-//             2. sudo ds4drv --hidraw &
-//             3. sudo ./mission-control
-
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // open serial port
-    let serial_port = NonBlockingSerialPort::open("/dev/ttyACM0")?;
-
-    // init gamepads
-    let mut gilrs = Gilrs::new().expect("Gilrs could not be created");
-
-    // connect to deep space network
-    let mut antenna = DeepSpaceAntenna::connect("192.168.1.42:5003", "rover-hub")?;
-
-    // create internal communication channel
-    let (tx, rx) = channel::<Notification>();
-
-    // interrupt watcher loop
-    let is_running = Arc::new(AtomicBool::new(true));
-    {
-        let r = is_running.clone();
-        let mut signals = Signals::new(TERM_SIGNALS)?;
-        thread::spawn(move || {
-            for signal in signals.forever() {
-                r.store(false, Ordering::SeqCst); // tell other threads to shut down
-                eprintln!("Received signal {:?}", signal);
-                break; // stop this thread
-            }
-        });
-    }
-
-    // consumer loop
-    {
-        while is_running.load(Ordering::SeqCst) {
-            antenna.process_messages(&tx);
-            process_serial_port_messages(&serial_port, &tx);
-            process_gamepad_events(&mut gilrs, &tx);
-            consume_all_notifications(&rx, &serial_port, &mut gilrs);
-
-            thread::sleep(Duration::from_millis(20)); // longer delay?
+    fn decode(&mut self, src: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
+        let newline = src.as_ref().iter().position(|b| *b == b'\n');
+        if let Some(n) = newline {
+            let line = src.split_to(n + 1);
+            return match str::from_utf8(line.as_ref()) {
+                Ok(s) => Ok(Some(s.to_string())),
+                Err(_) => Err(io::Error::new(io::ErrorKind::Other, "Invalid String")),
+            };
         }
+        Ok(None)
     }
+}
 
-    // TODO: join all threads
-    // producer_thread
-    //     .join()
-    //     .expect("The producer thread being joined has panicked.");
+impl Encoder<String> for LineCodec {
+    type Error = io::Error;
 
-    println!("all threads exited.");
+    fn encode(&mut self, _item: String, _dst: &mut BytesMut) -> Result<(), Self::Error> {
+        Ok(())
+    }
+}
 
+#[tokio::main]
+async fn main() -> tokio_serial::Result<()> {
+    let mut args = env::args();
+    let tty_path = args.nth(1).unwrap_or_else(|| DEFAULT_TTY.into());
+
+    let mut port = tokio_serial::new(tty_path, 9600).open_native_async()?;
+
+    #[cfg(unix)]
+    port.set_exclusive(false)
+        .expect("Unable to set serial port exclusive to false");
+
+    let mut reader = LineCodec.framed(port);
+
+    while let Some(line_result) = reader.next().await {
+        let line = line_result.expect("Failed to read line");
+        println!("{}", line);
+    }
     Ok(())
-}
-
-fn process_serial_port_messages(
-    serial_port: &NonBlockingSerialPort,
-    sender: &Sender<Notification>,
-) {
-    match serial_port.try_read_u8() {
-        Ok(Some(byte)) => {
-            println!("Received char: {}", byte as char);
-            sender
-                .send(Notification::SerialInput(byte))
-                .expect("tx.send failed.");
-        }
-        Ok(None) => (),
-        Err(_) => panic!("serial_port.try_read_u8() failed"),
-    }
-}
-
-fn process_gamepad_events(gilrs: &mut Gilrs, sender: &Sender<Notification>) {
-    while let Some(Event {
-        id: gamepad_id,
-        event,
-        time: _,
-    }) = gilrs.next_event()
-    {
-        println!("{:?}", event);
-        match event {
-            Connected => {
-                let gamepad = gilrs
-                    .connected_gamepad(gamepad_id)
-                    .expect("gamepad should be connected but it is not.");
-                println!(
-                    "{} is connected; power info: {:?}; force feedback: {};",
-                    gamepad.name(),
-                    gamepad.power_info(),
-                    if gamepad.is_ff_supported() {
-                        "supported"
-                    } else {
-                        "not supported"
-                    }
-                );
-            }
-            Disconnected => {
-                let disconnected_gamepad = gilrs.gamepad(gamepad_id);
-                println!("{} disconnected;", disconnected_gamepad.name());
-            }
-            ButtonPressed(button, _) => {
-                sender
-                    .send(Notification::GamepadButton(button, gamepad_id))
-                    .unwrap();
-            }
-            ButtonRepeated(_, _) => {}
-            ButtonReleased(_, _) => {}
-            AxisChanged(axis, value, _code) => {
-                sender
-                    .send(Notification::GamepadAxis(axis, value, gamepad_id))
-                    .unwrap();
-            }
-            ButtonChanged(_button, _value, _code) => {}
-            Dropped => { /*ignore*/ }
-        }
-    }
-}
-
-fn consume_all_notifications(
-    receiver: &Receiver<Notification>,
-    serial_port: &NonBlockingSerialPort,
-    gilrs: &mut Gilrs,
-) {
-    /*recv() blocks*/
-    while let Ok(notification) = receiver.try_recv() {
-        println!("notification: {:?}", notification);
-        match notification {
-            Notification::SerialInput(_byte) => {}
-            Notification::GamepadButton(button, gamepad_id) => {
-                match button {
-                    //see: https://gitlab.com/gm666q/joydev-rs/-/blob/master/joydev/src/event_codes/key.rs
-                    Button::North => {
-                        serial_port.write_u8(b'f').unwrap(); // TODO: resolve WouldBlock error
-                    }
-                    Button::South => {
-                        serial_port.write_u8(b's').unwrap(); // TODO: resolve WouldBlock error
-                    }
-                    Button::East => {
-                        rumble_gamepad(gamepad_id, gilrs);
-                    }
-                    _ => {}
-                }
-            }
-            Notification::GamepadAxis(axis, value, _gamepad_id) => {
-                let speed = (value * 600_f32) as i16;
-                match axis {
-                    Axis::LeftStickY => {
-                        let message = format!("l{}\n", speed);
-                        serial_port.write_text(&message).unwrap(); // TODO: resolve WouldBlock error
-                    }
-                    Axis::RightStickY => {
-                        let message = format!("r{}\n", speed);
-                        serial_port.write_text(&message).unwrap(); // TODO: resolve WouldBlock error
-                    }
-                    _ => {}
-                }
-            }
-        }
-    }
-}
-
-fn rumble_gamepad(gamepad_id: GamepadId, gilrs: &mut Gilrs) {
-    let duration = Ticks::from_ms(150);
-    let effect = EffectBuilder::new()
-        .add_effect(BaseEffect {
-            kind: BaseEffectType::Strong { magnitude: 60_000 },
-            scheduling: Replay {
-                play_for: duration,
-                with_delay: duration * 3,
-                ..Default::default()
-            },
-            envelope: Default::default(),
-        })
-        .add_effect(BaseEffect {
-            kind: BaseEffectType::Weak { magnitude: 60_000 },
-            scheduling: Replay {
-                after: duration * 2,
-                play_for: duration,
-                with_delay: duration * 3,
-            },
-            ..Default::default()
-        })
-        .gamepads(&[gamepad_id])
-        .finish(gilrs)
-        .unwrap();
-    effect.play().unwrap();
-    thread::sleep(Duration::from_secs(1));
 }

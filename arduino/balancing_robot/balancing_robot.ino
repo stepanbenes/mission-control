@@ -128,76 +128,11 @@ void setup() {
 void loop() {
   
   // Hearbeat LED flashing, if you see this LED flashing, the robot is running it's main loop. 
-  digitalWrite(ON_BOARD_LED, millis() % 1000 < 50);
+  //digitalWrite(ON_BOARD_LED, millis() % 1000 < 50);
 
-  imu.updateIMUdata();
-
-  // calculate the angle of the robot based in accelerometer and gyro data. 
-  // This is done with a simple complimentary filter. See the "complimentaryFilter.h" -file. 
-  float accAngle = atan2(-imu.getAccelX(), imu.getAccelZ()) * 57;       
-  currentLeanAngle = angleFilter.calculate(accAngle, imu.getGyroY(), deltaTime);  
-  if (SERIAL_DEBUG_SHOW_ANGLE)  
-    Serial.println(currentLeanAngle);
-
-  // turn off behavior >>>
-  behavior(); // controls how the robot chuld move. This function contains the obstacle avoidance behavior
-  // <<<
-
-  actualTargetSpeed += constrain(targetSpeed - actualTargetSpeed, -SPEED_ACCELERATION, SPEED_ACCELERATION); 
-  actualTurningSpeed += constrain(turningSpeed -actualTurningSpeed, -TURN_ACCELERATION, TURN_ACCELERATION);  
-
-  // balance the robot.   
-  float targetAngle = speedPID.updatePID(actualTargetSpeed, motorSpeed, deltaTime);
-  motorSpeed = -anglePID.updatePID(targetAngle, currentLeanAngle, deltaTime);
-
-  // overwrite input params >>>
-  // motorSpeed = 0.5f;
-  // actualTurningSpeed = 0.0f;
-  // <<<
-
-  // start balancing if the robot is close to equilibrium. 
-  if (!balancing && millis() > 3000 && abs(currentLeanAngle) < START_ANGLE_ERROR) {
-    balancing = true;  
-    turningSpeed = motorSpeed = 0; 
-    anglePID.resetPID(); 
-    speedPID.resetPID(); 
-    angleFilter.resetValues();
-  }
+  Serial.println("huhu");
   
-  if (balancing) {
-    // Stop balancing if angle error is to large. 
-    if ((targetAngle - MAX_ACCEPTABLE_ANGLE_ERROR) > currentLeanAngle || 
-          currentLeanAngle > (targetAngle + MAX_ACCEPTABLE_ANGLE_ERROR)) {
-      balancing = false;
-    }
-
-    // Stop balancing if the robot is leaning to much in any direction.
-    if (-MAX_ACCEPTABLE_ANGLE > currentLeanAngle || currentLeanAngle > MAX_ACCEPTABLE_ANGLE) {
-      balancing = false;
-    }
-    
-    // Motor speed is converted from rotations per second to steps per second
-    int16_t leftMotorSpeed = (motorSpeed + actualTurningSpeed) * 200; // (200 full steps per revolution)
-    int16_t rightMotorSpeed = (motorSpeed - actualTurningSpeed) * 200;
-    setMotorSpeed(leftMotorSpeed, 2);
-    setMotorSpeed(rightMotorSpeed, 1);
-    digitalWrite(LEFT_ENABLE_PIN, LOW); // enable the stepper motors
-    digitalWrite(RIGHT_ENABLE_PIN, LOW);
-  } 
-  else      // robot is not balancing
-  {
-    setMotorSpeed(0, 2);  // set the speeds of the motors to zero
-    setMotorSpeed(0, 1);    
-    digitalWrite(LEFT_ENABLE_PIN, HIGH); // disable the stepper motors
-    digitalWrite(RIGHT_ENABLE_PIN, HIGH); 
-  }
-
-  // Calculate delta-time in seconds, used in PID and filter math. 
-  lastLoopTime = micros() - loopStartTime;  
-  deltaTime = (float)lastLoopTime / (float)1000000;  
-  loopStartTime = micros();   
-  if (SERIAL_DEBUG_SHOW_LOOPTIME_US) 
-    Serial.println(lastLoopTime); 
+  delay(5000);
 }
 
 void behavior() { 
