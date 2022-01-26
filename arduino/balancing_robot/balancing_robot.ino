@@ -141,7 +141,7 @@ void loop() {
   }
 
   if (readString.length() >0) {
-      Serial.println(readString); //see what was received
+      Serial.print(readString); //see what was received
       readString="";
   }
 
