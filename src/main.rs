@@ -1,7 +1,7 @@
    
 #![warn(rust_2018_idioms)]
 
-use futures::stream::{StreamExt, SplitStream};
+use futures::{stream::{StreamExt, SplitStream}, select, FutureExt, pin_mut};
 use std::{env, io::{self, BufRead}, str};
 use tokio_util::codec::{Decoder, Encoder, LinesCodec, FramedRead, Framed};
 
@@ -66,12 +66,17 @@ async fn main() -> tokio_serial::Result<()> {
     //println!("hello");
 
     loop {
-        tokio::select! {
-            serial_line = read_serial_line(&mut reader) => {
+        let t1 = read_serial_line(&mut reader).fuse();
+        let t2 = read_stdin_line().fuse();
+    
+        pin_mut!(t1, t2);
+
+        select! {
+            serial_line = t1 => {
                 let line = serial_line.expect("Failed to read line from serial");
                 println!("serial: {}", line);
             },
-            stdin_line = read_stdin_line() => {
+            stdin_line = t2 => {
                 let line = stdin_line.expect("Failed to read line from stdin");
                 println!("stdin: {}", line);
                 writer.send(line).await.expect("Failed to send text");
