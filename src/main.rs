@@ -8,7 +8,7 @@ use tokio_util::codec::{Decoder, Encoder, LinesCodec, FramedRead, Framed};
 use tokio_serial::{ SerialStream, SerialPortBuilderExt };
 use futures::sink::SinkExt;
 
-use stick::{Controller, Event, Listener};
+use stick::{Controller, Event, Listener, Remap};
 
 #[cfg(unix)]
 const DEFAULT_TTY: &str = "/dev/ttyUSB0";
@@ -67,7 +67,7 @@ async fn main() -> tokio_serial::Result<()> {
 
     //println!("hello");
 
-    let mut gamepadListener = Listener::default();
+    let mut gamepadListener = Listener::new(Remap::new());
 
     loop {
         tokio::select! {
