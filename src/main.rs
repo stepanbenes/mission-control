@@ -71,9 +71,12 @@ async fn main() -> tokio_serial::Result<()> {
 
     let mut controllers: Vec<_> = Vec::<Controller>::new();
     
-    controllers.push(Listener::default().await);
-    controllers.push(Listener::default().await);
-    controllers.push(Listener::default().await);
+    let mut listener = Listener::default();
+
+    // TODO: works only for connected gamepad and first three devices, otherwise crashes on assert (incompattible device)
+    controllers.push((&mut listener).await); // gamepad buttons and axes
+    controllers.push((&mut listener).await); // gamepad motion
+    controllers.push((&mut listener).await); // gamepad touchpad
 
     loop {
         tokio::select! {
@@ -86,13 +89,13 @@ async fn main() -> tokio_serial::Result<()> {
                 println!("stdin: {}", line);
                 //io.send(line).await.expect("Failed to send text");
             },
-            event = &mut controller => {
+            event = &mut controllers[0] => {
                 println!("{:?}", event);
                 match event {
                     Event::Disconnect => {
                     }
                     Event::ActionA(pressed) => {
-                        controller.rumble(1.0f32);
+                        controllers[0].rumble(1.0f32);
                     }
                     Event::ActionB(pressed) => {
                         io.send(format!("{}", pressed)).await.expect("Failed to send text");
