@@ -1,12 +1,15 @@
-   
 //#![warn(rust_2018_idioms)]
 
 use futures::stream::StreamExt;
-use std::{env, io::{self, BufRead}, str};
-use tokio_util::codec::{Decoder, Encoder, LinesCodec, FramedRead, Framed};
+use std::{
+    env,
+    io::{self, BufRead},
+    str,
+};
+use tokio_util::codec::{Decoder, Encoder, Framed, FramedRead, LinesCodec};
 
-use tokio_serial::{ SerialStream, SerialPortBuilderExt };
 use futures::sink::SinkExt;
+use tokio_serial::{SerialPortBuilderExt, SerialStream};
 
 use stick::{Controller, Event, Listener};
 
@@ -44,7 +47,6 @@ const DEFAULT_TTY: &str = "COM1";
 
 #[tokio::main]
 async fn main() -> tokio_serial::Result<()> {
-
     let mut args = env::args();
     let tty_path = args.nth(1).unwrap_or_else(|| DEFAULT_TTY.into());
 
@@ -67,7 +69,7 @@ async fn main() -> tokio_serial::Result<()> {
 
     //println!("hello");
 
-    let mut gamepad = Listener::default().await;
+    let mut controller = Listener::default().await;
 
     loop {
         tokio::select! {
@@ -80,8 +82,26 @@ async fn main() -> tokio_serial::Result<()> {
                 println!("stdin: {}", line);
                 //io.send(line).await.expect("Failed to send text");
             },
-            x = &mut gamepad => {
-                println!("{:?}", x);
+            event = &mut controller => {
+                println!("{:?}", event);
+                match event {
+                    Event::Disconnect => {
+                    }
+                    Event::ActionA(pressed) => {
+                        controller.rumble(f32::from(u8::from(pressed)));
+                    }
+                    Event::ActionB(pressed) => {
+                        io.send(format!("{}", pressed)).await.expect("Failed to send text");
+                        //controller.rumble(f32::from(u8::from(pressed)));
+                    }
+                    Event::BumperL(pressed) => {
+                        
+                    }
+                    Event::BumperR(pressed) => {
+
+                    }
+                    _ => {}
+                }
             },
         }
         println!("---");
@@ -96,6 +116,8 @@ async fn read_stdin_line() -> Result<String, Box<dyn std::error::Error>> {
     Ok(reader.next().await.transpose()?.unwrap())
 }
 
-async fn read_serial_line( io: &mut Framed<SerialStream, LinesCodec>) -> Result<String, Box<dyn std::error::Error>> {
+async fn read_serial_line(
+    io: &mut Framed<SerialStream, LinesCodec>,
+) -> Result<String, Box<dyn std::error::Error>> {
     Ok(io.next().await.unwrap()?)
 }
