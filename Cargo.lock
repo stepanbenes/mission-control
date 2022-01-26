@@ -273,6 +273,7 @@ version = "0.1.0"
 dependencies = [
  "bytes",
  "futures",
+ "stick",
  "tokio",
  "tokio-serial",
  "tokio-util",
@@ -452,6 +453,23 @@ name = "smallvec"
 version = "1.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f2dd574626839106c320a323308629dcb1acfc96e32a8cba364ddc61ac23ee83"
+
+[[package]]
+name = "smelling_salts"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b0ac3b24afd6d59663abbd40d5b99d281d19413e70f43dc5277dfda314c1647b"
+
+[[package]]
+name = "stick"
+version = "0.12.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "064d1e222713eed6ab1f8f7e66fc37d4c12ae4b940544bf4b44f1a62bfda0726"
+dependencies = [
+ "log",
+ "smelling_salts",
+ "winapi",
+]
 
 [[package]]
 name = "syn"

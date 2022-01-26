@@ -1,5 +1,7 @@
    
-#![warn(rust_2018_idioms)]
+//#![warn(rust_2018_idioms)]
+
+mod gamepad;
 
 use futures::stream::StreamExt;
 use std::{env, io::{self, BufRead}, str};
@@ -43,6 +45,10 @@ const DEFAULT_TTY: &str = "COM1";
 
 #[tokio::main]
 async fn main() -> tokio_serial::Result<()> {
+
+    gamepad::event_loop().await;
+
+
     let mut args = env::args();
     let tty_path = args.nth(1).unwrap_or_else(|| DEFAULT_TTY.into());
 
