@@ -6,7 +6,7 @@ use std::{env, io::{self, BufRead}, str};
 use tokio_util::codec::{Decoder, Encoder, LinesCodec, FramedRead, Framed};
 
 use bytes::BytesMut;
-use tokio_serial::SerialPortBuilderExt;
+use tokio_serial::{ SerialStream, SerialPortBuilderExt };
 use futures::sink::SinkExt;
 
 #[cfg(unix)]
@@ -46,7 +46,7 @@ async fn main() -> tokio_serial::Result<()> {
     let mut args = env::args();
     let tty_path = args.nth(1).unwrap_or_else(|| DEFAULT_TTY.into());
 
-    let port = tokio_serial::new(tty_path, 9600).open_native_async()?;
+    let mut port = tokio_serial::new(tty_path, 9600).open_native_async()?;
 
     #[cfg(unix)]
     port.set_exclusive(false)
@@ -60,30 +60,34 @@ async fn main() -> tokio_serial::Result<()> {
     //     io.send("pi".to_string()).await.expect("Failed to send text");
     // }
 
-    
+    // let line = do_the_line().await.expect("Failed to read line from stdin");
+    // println!("stdin: {}", line);
+
+    //println!("hello");
 
     loop {
         tokio::select! {
-            stdin_line = do_the_line() => {
+            serial_line = read_serial_line(&mut io) => {
+                let line = serial_line.expect("Failed to read line from serial");
+                println!("serial: {}", line);
+            },
+            stdin_line = read_stdin_line() => {
                 let line = stdin_line.expect("Failed to read line from stdin");
                 println!("stdin: {}", line);
                 io.send(line).await.expect("Failed to send text");
             },
-            serial_line = io.next() => {
-                let line = serial_line.unwrap().expect("Failed to read line from serial");
-                println!("serial: {}", line);
-            }
         }
     }
 
     Ok(())
 }
 
-async fn do_the_line() -> Result<String, Box<dyn std::error::Error>> {
+async fn read_stdin_line() -> Result<String, Box<dyn std::error::Error>> {
     let stdin = tokio::io::stdin();
-    let mut line = String::new();
     let mut reader = FramedRead::new(stdin, LinesCodec::new());
-    
-    let line = reader.next().await.transpose()?.unwrap();
-    Ok(line)
+    Ok(reader.next().await.transpose()?.unwrap())
+}
+
+async fn read_serial_line( io: &mut Framed<SerialStream, LinesCodec>) -> Result<String, Box<dyn std::error::Error>> {
+    Ok(io.next().await.unwrap()?)
 }
