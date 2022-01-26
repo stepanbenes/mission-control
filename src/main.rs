@@ -1,7 +1,7 @@
    
 #![warn(rust_2018_idioms)]
 
-use futures::stream::StreamExt;
+use futures::stream::{StreamExt, SplitStream};
 use std::{env, io::{self, BufRead}, str};
 use tokio_util::codec::{Decoder, Encoder, LinesCodec, FramedRead, Framed};
 
@@ -52,7 +52,7 @@ async fn main() -> tokio_serial::Result<()> {
     port.set_exclusive(false)
         .expect("Unable to set serial port exclusive to false");
 
-    let mut io = Framed::new(port, LinesCodec::new()); //LineCodec.framed(port);
+    let (mut writer, mut reader) = Framed::new(port, LinesCodec::new()).split(); //LineCodec.framed(port);
 
     // while let Some(line_result) = io.next().await {
     //     let line = line_result.expect("Failed to read line");
@@ -67,14 +67,14 @@ async fn main() -> tokio_serial::Result<()> {
 
     loop {
         tokio::select! {
-            serial_line = read_serial_line(&mut io) => {
+            serial_line = read_serial_line(&mut reader) => {
                 let line = serial_line.expect("Failed to read line from serial");
                 println!("serial: {}", line);
             },
             stdin_line = read_stdin_line() => {
                 let line = stdin_line.expect("Failed to read line from stdin");
                 println!("stdin: {}", line);
-                io.send(line).await.expect("Failed to send text");
+                writer.send(line).await.expect("Failed to send text");
             },
         }
     }
@@ -88,6 +88,6 @@ async fn read_stdin_line() -> Result<String, Box<dyn std::error::Error>> {
     Ok(reader.next().await.transpose()?.unwrap())
 }
 
-async fn read_serial_line( io: &mut Framed<SerialStream, LinesCodec>) -> Result<String, Box<dyn std::error::Error>> {
-    Ok(io.next().await.unwrap()?)
+async fn read_serial_line(reader: &mut SplitStream<Framed<SerialStream, LinesCodec>>) -> Result<String, Box<dyn std::error::Error>> {
+    Ok(reader.next().await.unwrap()?)
 }
