@@ -86,6 +86,8 @@ ISR(TIMER3_COMPA_vect)
   digitalWrite(RIGHT_STEP_PIN, LOW);
 }
 
+String readString;
+
 void setup() {
   Serial.begin(SERIAL_BAUDRATE);         // for debug
   Serial.print("Initializing...");
@@ -130,9 +132,20 @@ void loop() {
   // Hearbeat LED flashing, if you see this LED flashing, the robot is running it's main loop. 
   //digitalWrite(ON_BOARD_LED, millis() % 1000 < 50);
 
-  Serial.println("huhu");
-  
-  delay(5000);
+  while (Serial.available()) {
+    delay(3);  //delay to allow buffer to fill 
+    if (Serial.available() >0) {
+      char c = Serial.read();  //gets one byte from serial buffer
+      readString += c; //makes the string readString
+    } 
+  }
+
+  if (readString.length() >0) {
+      Serial.println(readString); //see what was received
+      readString="";
+  }
+
+  delay(50);
 }
 
 void behavior() { 

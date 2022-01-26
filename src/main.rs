@@ -7,9 +7,10 @@ use tokio_util::codec::{Decoder, Encoder};
 
 use bytes::BytesMut;
 use tokio_serial::SerialPortBuilderExt;
+use futures::sink::SinkExt;
 
 #[cfg(unix)]
-const DEFAULT_TTY: &str = "/dev/ttyACM0";
+const DEFAULT_TTY: &str = "/dev/ttyUSB0";
 #[cfg(windows)]
 const DEFAULT_TTY: &str = "COM1";
 
@@ -51,11 +52,12 @@ async fn main() -> tokio_serial::Result<()> {
     port.set_exclusive(false)
         .expect("Unable to set serial port exclusive to false");
 
-    let mut reader = LineCodec.framed(port);
+    let mut io = LineCodec.framed(port);
 
-    while let Some(line_result) = reader.next().await {
+    while let Some(line_result) = io.next().await {
         let line = line_result.expect("Failed to read line");
         println!("{}", line);
+        io.send("pi".to_string()).await.expect("Failed to send text");
     }
     Ok(())
 }
