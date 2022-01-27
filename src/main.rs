@@ -3,10 +3,9 @@
 use futures::stream::StreamExt;
 use std::{
     env,
-    io::{self, BufRead},
     str,
 };
-use tokio_util::codec::{Decoder, Encoder, Framed, FramedRead, LinesCodec};
+use tokio_util::codec::{Framed, FramedRead, LinesCodec};
 
 use futures::sink::SinkExt;
 use tokio_serial::{SerialPortBuilderExt, SerialStream};
@@ -69,6 +68,9 @@ async fn main() -> tokio_serial::Result<()> {
 
     //println!("hello");
 
+    let stdin = tokio::io::stdin();
+    let mut reader = FramedRead::new(stdin, LinesCodec::new());
+
     let mut controllers: Vec<_> = Vec::<Controller>::new();
     
     let mut listener = Listener::default();
@@ -84,7 +86,7 @@ async fn main() -> tokio_serial::Result<()> {
                 let line = serial_line.expect("Failed to read line from serial");
                 println!("serial: {}", line);
             },
-            stdin_line = read_stdin_line() => {
+            stdin_line = read_stdin_line(&mut reader) => {
                 let line = stdin_line.expect("Failed to read line from stdin");
                 println!("stdin: {}", line);
                 //io.send(line).await.expect("Failed to send text");
@@ -117,9 +119,7 @@ async fn main() -> tokio_serial::Result<()> {
     Ok(())
 }
 
-async fn read_stdin_line() -> Result<String, Box<dyn std::error::Error>> {
-    let stdin = tokio::io::stdin();
-    let mut reader = FramedRead::new(stdin, LinesCodec::new());
+async fn read_stdin_line(reader: &mut FramedRead<tokio::io::Stdin, LinesCodec>) -> Result<String, Box<dyn std::error::Error>> {
     Ok(reader.next().await.transpose()?.unwrap())
 }
 
