@@ -76,6 +76,10 @@ async fn main() -> tokio_serial::Result<()> {
     let mut listener = Listener::default();
 
     // TODO: works only for connected gamepad and first three devices, otherwise crashes on assert (incompattible device)
+    // TODO: adapt implementation to create controller instance from device address or name
+    // see: https://github.com/libcala/stick/blob/ab3bdd7746a19b0319e21a246e3e66bdd4882f70/stick/src/raw/linux.rs#L745
+    // see: https://github.com/libcala/stick/blob/ab3bdd7746a19b0319e21a246e3e66bdd4882f70/stick/src/raw/linux.rs#L762
+    // see: https://github.com/libcala/stick/blob/ab3bdd7746a19b0319e21a246e3e66bdd4882f70/stick/src/raw/linux.rs#L785
     controllers.push((&mut listener).await); // gamepad buttons and axes
     controllers.push((&mut listener).await); // gamepad motion
     controllers.push((&mut listener).await); // gamepad touchpad
