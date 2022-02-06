@@ -1,65 +1,15 @@
-//#![warn(rust_2018_idioms)]
-
+use futures::SinkExt;
 use tokio::signal::{ctrl_c, unix::{signal, SignalKind}};
 use futures::stream::StreamExt;
-use std::{
-    env,
-    str,
-};
-use tokio_util::codec::{Framed, FramedRead, LinesCodec};
+use tokio_util::codec::{Framed, LinesCodec};
 
-use futures::sink::SinkExt;
 use tokio_serial::{SerialPortBuilderExt, SerialStream};
 
 use stick::{Controller, Event, Listener};
 
-#[cfg(unix)]
-const DEFAULT_TTY: &str = "/dev/ttyUSB0";
-#[cfg(windows)]
-const DEFAULT_TTY: &str = "COM1";
-
-// struct LineCodec;
-
-// impl Decoder for LineCodec {
-//     type Item = String;
-//     type Error = io::Error;
-
-//     fn decode(&mut self, src: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
-//         let newline = src.as_ref().iter().position(|b| *b == b'\n');
-//         if let Some(n) = newline {
-//             let line = src.split_to(n + 1);
-//             return match str::from_utf8(line.as_ref()) {
-//                 Ok(s) => Ok(Some(s.to_string())),
-//                 Err(_) => Err(io::Error::new(io::ErrorKind::Other, "Invalid String")),
-//             };
-//         }
-//         Ok(None)
-//     }
-// }
-
-// impl Encoder<String> for LineCodec {
-//     type Error = io::Error;
-
-//     fn encode(&mut self, _item: String, _dst: &mut BytesMut) -> Result<(), Self::Error> {
-//         Ok(())
-//     }
-// }
-
 #[tokio::main]
-async fn main() -> tokio_serial::Result<()> {
-    let mut args = env::args();
-    let tty_path = args.nth(1).unwrap_or_else(|| DEFAULT_TTY.into());
-
-    let mut port = tokio_serial::new(tty_path, 9600).open_native_async()?;
-
-    #[cfg(unix)]
-    port.set_exclusive(false)
-        .expect("Unable to set serial port exclusive to false");
-
-    let mut io = Framed::new(port, LinesCodec::new());
-
-    //let stdin = tokio::io::stdin();
-    //let mut reader = FramedRead::new(stdin, LinesCodec::new()); // stdin is blocking and prevents shutdown
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let mut io = open_serial_port("/dev/ttyACM0")?;
 
     //let mut controllers: Vec<_> = Vec::<Controller>::new();
     
@@ -82,13 +32,9 @@ async fn main() -> tokio_serial::Result<()> {
                 let line = serial_line.expect("Failed to read line from serial");
                 println!("serial: {}", line);
             },
-            // stdin_line = read_stdin_line(&mut reader) => {
-            //     let line = stdin_line.expect("Failed to read line from stdin");
-            //     println!("stdin: {}", line);
-            //     io.send(line).await.expect("Failed to send text");
-            // },
             _ = ctrl_c() => {
                 println!("Received ctrl+c. Shutting down.");
+                //write_to_serial(&mut io, "huhu").await.expect("Failed to write line to serial");
                 break;
             },
             _ = sigterm_stream.recv() => {
@@ -124,12 +70,18 @@ async fn main() -> tokio_serial::Result<()> {
     Ok(())
 }
 
-// async fn read_stdin_line(reader: &mut FramedRead<tokio::io::Stdin, LinesCodec>) -> Result<String, Box<dyn std::error::Error>> {
-//     Ok(reader.next().await.transpose()?.unwrap())
-// }
+fn open_serial_port(tty_path: &str) -> Result<Framed<tokio_serial::SerialStream, tokio_util::codec::LinesCodec>, Box<dyn std::error::Error>> {
+    let mut port = tokio_serial::new(tty_path, 9600).open_native_async()?;
+    port.set_exclusive(false).expect("Unable to set serial port exclusive to false");
+    Ok(Framed::new(port, LinesCodec::new()))
+}
 
 async fn read_serial_line(
     io: &mut Framed<SerialStream, LinesCodec>,
 ) -> Result<String, Box<dyn std::error::Error>> {
     Ok(io.next().await.unwrap()?)
+}
+
+async fn write_to_serial(io: &mut Framed<SerialStream, LinesCodec>, text: &str) -> Result<(), Box<dyn std::error::Error>> {
+    Ok(io.send(text).await?)
 }
