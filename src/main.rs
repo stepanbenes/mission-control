@@ -9,20 +9,22 @@ use stick::{Controller, Event, Listener};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let mut io = open_serial_port("/dev/ttyACM0")?;
+    let mut io = open_serial_port("/dev/ttyUSB0")?;
 
-    //let mut controllers: Vec<_> = Vec::<Controller>::new();
+    let mut controllers: Vec<_> = Vec::<Controller>::new();
     
-    //let mut listener = Listener::default();
+    let mut listener = Listener::default();
 
     // TODO: works only for connected gamepad and first three devices, otherwise crashes on assert (incompattible device)
     // TODO: adapt implementation to create controller instance from device address or name
     // see: https://github.com/libcala/stick/blob/ab3bdd7746a19b0319e21a246e3e66bdd4882f70/stick/src/raw/linux.rs#L745
     // see: https://github.com/libcala/stick/blob/ab3bdd7746a19b0319e21a246e3e66bdd4882f70/stick/src/raw/linux.rs#L762
     // see: https://github.com/libcala/stick/blob/ab3bdd7746a19b0319e21a246e3e66bdd4882f70/stick/src/raw/linux.rs#L785
-    //controllers.push((&mut listener).await); // gamepad buttons and axes
-    //controllers.push((&mut listener).await); // gamepad motion
-    //controllers.push((&mut listener).await); // gamepad touchpad
+    controllers.push((&mut listener).await); // gamepad buttons and axes
+    controllers.push((&mut listener).await); // gamepad motion
+    controllers.push((&mut listener).await); // gamepad touchpad
+
+    //controllers.push((&mut listener).await); // fails!
 
     let mut sigterm_stream = signal(SignalKind::terminate())?;
 
@@ -42,27 +44,27 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 break;
             },
             
-            // event = &mut controllers[0] => {
-            //     println!("{:?}", event);
-            //     match event {
-            //         Event::Disconnect => {
-            //         }
-            //         Event::ActionA(pressed) => {
-            //             controllers[0].rumble(1.0f32);
-            //         }
-            //         Event::ActionB(pressed) => {
-            //             io.send(format!("{}", pressed)).await.expect("Failed to send text");
-            //             //controller.rumble(f32::from(u8::from(pressed)));
-            //         }
-            //         Event::BumperL(pressed) => {
+            event = &mut controllers[0] => {
+                println!("{:?}", event);
+                match event {
+                    Event::Disconnect => {
+                    }
+                    Event::ActionA(pressed) => {
+                        controllers[0].rumble(1.0f32);
+                    }
+                    Event::ActionB(pressed) => {
+                        io.send(format!("{}", pressed)).await.expect("Failed to send text");
+                        //controller.rumble(f32::from(u8::from(pressed)));
+                    }
+                    Event::BumperL(pressed) => {
                         
-            //         }
-            //         Event::BumperR(pressed) => {
+                    }
+                    Event::BumperR(pressed) => {
 
-            //         }
-            //         _ => {}
-            //     }
-            // },
+                    }
+                    _ => {}
+                }
+            },
         }
         println!("---");
     }
