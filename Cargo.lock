@@ -272,7 +272,7 @@ name = "mission-control"
 version = "0.1.0"
 dependencies = [
  "futures",
- "stick",
+ "smelling_salts",
  "tokio",
  "tokio-serial",
  "tokio-util",
@@ -458,17 +458,6 @@ name = "smelling_salts"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b0ac3b24afd6d59663abbd40d5b99d281d19413e70f43dc5277dfda314c1647b"
-
-[[package]]
-name = "stick"
-version = "0.12.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e60a95d77ca18122ca8cc759b0dcde33274e68af001d899abb732a1d9c6c0cea"
-dependencies = [
- "log",
- "smelling_salts",
- "winapi",
-]
 
 [[package]]
 name = "syn"

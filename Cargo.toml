@@ -11,4 +11,4 @@ tokio = { version = "1.16.1", features = ["full"] }
 tokio-serial = { version = "5.4.1", features = ["rt", "codec"] }
 tokio-util = "0.6.9"
 futures = "0.3.21"
-stick = "0.12.4"
+smelling_salts = "0.4.0"
