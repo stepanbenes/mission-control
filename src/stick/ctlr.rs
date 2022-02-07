@@ -18,6 +18,8 @@ use std::task::{Context, Poll};
 
 use crate::Event;
 
+const AXIS_VALUE_EPSILON: f64 = 0.001;
+
 #[repr(i8)]
 enum Btn {
     Exit = 0,
@@ -279,6 +281,8 @@ pub struct Controller {
     nums: u128,
     // Axis states:
     axis: [f64; Axs::Count as usize],
+    // device descriptor path
+    filename: String,
 }
 
 impl Debug for Controller {
@@ -292,6 +296,7 @@ impl Controller {
     pub(crate) fn new(
         raw: Box<dyn crate::stick::raw::Controller>,
         remap: &Remap,
+        filename: String,
     ) -> Self {
         let btns = 0;
         let nums = 0;
@@ -303,6 +308,7 @@ impl Controller {
             btns,
             nums,
             axis,
+            filename,
         }
     }
 
@@ -314,6 +320,10 @@ impl Controller {
     /// Get the name of this Pad.
     pub fn name(&self) -> &str {
         self.raw.name()
+    }
+
+    pub fn filename(&self) -> &str {
+        &self.filename
     }
 
     /// Turn on/off haptic force feedback.
@@ -380,7 +390,7 @@ impl Controller {
             self.raw.axis(v).clamp(-1.0, 1.0)
         };
         let axis = a as usize;
-        if self.axis[axis] == v {
+        if (self.axis[axis] - v).abs() < AXIS_VALUE_EPSILON { // if diff between old and new value is smaller than epsilon
             Poll::Pending
         } else {
             self.axis[axis] = v;
