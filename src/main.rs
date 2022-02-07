@@ -1,6 +1,6 @@
 mod stick;
 
-use futures::future::Map;
+use std::cell::RefCell;
 use futures::stream::FuturesUnordered;
 use futures::FutureExt;
 use futures::SinkExt;
@@ -16,37 +16,20 @@ use stick::{Controller, Event, Listener};
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut io = open_serial_port("/dev/ttyUSB0")?;
 
-    let mut controllers: Vec<_> = Vec::<Controller>::new();
+    let controllers: RefCell<Vec<_>> = RefCell::new(Vec::<Controller>::new());
     
     let mut listener = Listener::default();
 
-    // TODO: works only for connected gamepad and first three devices, otherwise crashes on assert (incompattible device)
-    // TODO: adapt implementation to create controller instance from device address or name
-    // see: https://github.com/libcala/stick/blob/ab3bdd7746a19b0319e21a246e3e66bdd4882f70/stick/src/raw/linux.rs#L745
-    // see: https://github.com/libcala/stick/blob/ab3bdd7746a19b0319e21a246e3e66bdd4882f70/stick/src/raw/linux.rs#L762
-    // see: https://github.com/libcala/stick/blob/ab3bdd7746a19b0319e21a246e3e66bdd4882f70/stick/src/raw/linux.rs#L785
-    //controllers.push((&mut listener).await); // gamepad buttons and axes
-    //controllers.push((&mut listener).await); // gamepad motion
-    //controllers.push((&mut listener).await); // gamepad touchpad
-
-    //controllers.push((&mut listener).await); // fails!
-
     let mut sigterm_stream = signal(SignalKind::terminate())?;
 
-    // let futures = controllers
-    // .into_iter()
-    // .enumerate()
-    // .map(|(i, fut)| fut.map(move |res| (i, res)))
-    // .collect::<FuturesUnordered<_>>();
-
-    //let controller_futures = FuturesUnordered::<futures::Map::<(Controller, Controller)>>::new();
-
     loop {
-        let mut controllers_futures = FuturesUnordered::<Controller>::new();
+
         tokio::select! {
             new_controller = (&mut listener) => {
-                println!("New device connected: {} ({})", new_controller.name(), new_controller.id());
-                controllers.push(new_controller);
+                println!("New device connected: {} ({})", new_controller.name(), new_controller.filename());
+                // if new_controller.name() != "Wireless Controller Motion Sensors" {
+                //     controllers.borrow_mut().push(new_controller);
+                // }
             },
             serial_line = read_serial_line(&mut io) => {
                 let line = serial_line.expect("Failed to read line from serial");
@@ -62,22 +45,24 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 break;
             },
             
-            event = controllers_futures.select_next_some() => {
+            Some((event, controller_index)) = next_event(&controllers) => {
                 println!("{:?}", event);
                 match event {
                     Event::Disconnect => {
+                        let disconnected_controller = controllers.borrow_mut().remove(controller_index);
+                        println!("Controller {name} disconnected", name = disconnected_controller.name());
                     }
-                    Event::ActionA(pressed) => {
+                    Event::ActionA(_pressed) => {
                         //controllers[0].rumble(1.0f32);
                     }
                     Event::ActionB(pressed) => {
                         io.send(format!("{}", pressed)).await.expect("Failed to send text");
-                        //controller.rumble(f32::from(u8::from(pressed)));
+                        //controller.ruaddaassww432141s4a2w3d1s4able(f32::from(u8::from(pressed)));
                     }
-                    Event::BumperL(pressed) => {
+                    Event::BumperL(_pressed) => {
                         
                     }
-                    Event::BumperR(pressed) => {
+                    Event::BumperR(_pressed) => {
 
                     }
                     _ => {}
@@ -98,12 +83,25 @@ fn open_serial_port(tty_path: &str) -> Result<Framed<tokio_serial::SerialStream,
     Ok(Framed::new(port, LinesCodec::new()))
 }
 
-async fn read_serial_line(
-    io: &mut Framed<SerialStream, LinesCodec>,
+async fn read_serial_line(io: &mut Framed<SerialStream, LinesCodec>,
 ) -> Result<String, Box<dyn std::error::Error>> {
     Ok(io.next().await.unwrap()?)
 }
 
+#[allow(dead_code)]
 async fn write_to_serial(io: &mut Framed<SerialStream, LinesCodec>, text: &str) -> Result<(), Box<dyn std::error::Error>> {
     Ok(io.send(text).await?)
+}
+
+async fn next_event(controllers: &RefCell<Vec<Controller>>) -> Option<(Event, usize)> {
+    if controllers.borrow().is_empty() {
+        return None;
+    }
+    let mut controller_list = controllers.borrow_mut();
+    let mut controller_futures = controller_list
+            .iter_mut()
+            .enumerate()
+            .map(|(i, controller)| controller.map(move |event| (event, i)))
+            .collect::<FuturesUnordered<_>>();
+    Some(controller_futures.select_next_some().await)
 }
