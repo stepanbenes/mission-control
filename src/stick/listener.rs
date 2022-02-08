@@ -9,6 +9,7 @@
 // LICENSE_MIT.txt and LICENSE_BOOST_1_0.txt).  This file may not be copied,
 // modified, or distributed except according to those terms.
 
+use crate::Controller;
 use crate::stick::Remap;
 use std::fmt::Debug;
 use std::future::Future;
@@ -36,10 +37,14 @@ impl Listener {
     pub fn new(remap: Remap) -> Self {
         Self(crate::stick::raw::GLOBAL.with(|g| g.listener(remap)))
     }
+
+    pub fn create_controller(&mut self, path: String) -> Option<Controller> {
+        self.0.as_mut().create_controller(path)
+    }
 }
 
 impl Future for Listener {
-    type Output = crate::Controller;
+    type Output = String;
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         Pin::new(&mut self.get_mut().0).poll(cx)

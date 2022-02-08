@@ -53,15 +53,19 @@ impl Global for FakeGlobal {}
 struct FakeListener;
 
 impl Listener for FakeListener {
-    fn poll(&mut self, _cx: &mut Context<'_>) -> Poll<crate::Controller> {
+    fn poll(&mut self, _cx: &mut Context<'_>) -> Poll<String> {
         Poll::Pending
+    }
+    fn create_controller(&mut self, _path: String) -> Option<crate::Controller> {
+        None
     }
 }
 
 /// Controller Listener Implementation
 pub(crate) trait Listener {
     /// Poll for controllers.
-    fn poll(&mut self, cx: &mut Context<'_>) -> Poll<crate::Controller>;
+    fn poll(&mut self, cx: &mut Context<'_>) -> Poll<String>;
+    fn create_controller(&mut self, path: String) -> Option<crate::Controller>;
 }
 
 /// Controller Implementation

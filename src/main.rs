@@ -30,17 +30,18 @@ struct State {
 }
 
 impl State {
-    fn connect(&mut self, controller: Controller) -> Poll<Exit> {
-        println!(
-            "Connected p{}, id: {:016X}, name: {}, file: {}",
-            self.controllers.len() + 1,
-            controller.id(),
-            controller.name(),
-            controller.filename(),
-        );
-        // TODO: check if controller not yet present
-        if !self.controllers.iter().any(|c| c.filename() == controller.filename()) {
-            self.controllers.push(controller);
+    fn connect(&mut self, controller_path: String) -> Poll<Exit> {
+        if let Some(controller) = self.listener.create_controller(controller_path) {
+            if !self.controllers.iter().any(|c| c.filename() == controller.filename()) { // check if controller not yet present
+                println!(
+                    "Connected controller, id: {:016X}, name: {}, file: {}",
+                    controller.id(),
+                    controller.name(),
+                    controller.filename(),
+                );
+                self.controllers.push(controller);
+                // TODO: send controller via channel to main thread
+            }
         }
         Pending
     }
@@ -89,8 +90,8 @@ async fn event_loop() {
     };
 
     loop {
-        let controller = (&mut state.listener).await;
-        let _ = state.connect(controller);
+        let controller_path = (&mut state.listener).await;
+        let _ = state.connect(controller_path);
     }
     // let player_id = Loop::new(&mut state)
     //     .when(|s| &mut s.listener, State::connect)

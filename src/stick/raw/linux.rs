@@ -723,7 +723,7 @@ impl Listener {
         }
     }
 
-    fn controller(remap: &Remap, mut filename: String) -> Poll<crate::Controller> {
+    fn controller(remap: &Remap, mut filename: String) -> Option<crate::Controller> {
         if let Some(capture) = EVENT_FILE_REGEX.captures_iter(&filename).next() {
             println!("{}", capture[0].to_string());
             filename.push('\0');
@@ -740,27 +740,29 @@ impl Listener {
             // If one succeeded, return that controller.
             if fd != -1 {
                 let controller = Controller::new(fd);
-                return Poll::Ready(crate::Controller::new(
+                return Some(crate::Controller::new(
                     Box::new(controller),
                     remap,
                     filename,
                 ));
             }
         }
-        Poll::Pending
+        None
     }
 }
 
 impl super::Listener for Listener {
-    fn poll(&mut self, cx: &mut Context<'_>) -> Poll<crate::Controller> {
+    fn create_controller(&mut self, path: String) -> Option<crate::Controller> {
+        Self::controller(&self.remap, path)
+    }
+
+    fn poll(&mut self, cx: &mut Context<'_>) -> Poll<String> {
         // Read the directory for ctrls if initialization hasn't completed yet.
         if let Some(ref mut read_dir_f) = &mut self.read_dir {
             for dir_entry in read_dir_f.flatten() {
                 let file = dir_entry.path();
                 let path = file.as_path().to_string_lossy().to_string();
-                if let Poll::Ready(controller) = Self::controller(&self.remap, path) {
-                    return Poll::Ready(controller);
-                }
+                return Poll::Ready(path);
             }
             self.read_dir = Some(Box::new(read_dir("/dev/input/").unwrap()));
         }
