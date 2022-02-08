@@ -1,5 +1,8 @@
 mod stick;
 
+#[macro_use]
+extern crate lazy_static;
+
 use std::cell::RefCell;
 use futures::stream::FuturesUnordered;
 use futures::FutureExt;
@@ -12,25 +15,119 @@ use tokio_serial::{SerialPortBuilderExt, SerialStream};
 
 use stick::{Controller, Event, Listener};
 
+// ==================================================
+
+use pasts::Loop;
+use std::task::Poll::{self, Pending, Ready};
+
+
+type Exit = usize;
+
+struct State {
+    listener: Listener,
+    controllers: Vec<Controller>,
+    rumble: (f32, f32),
+}
+
+impl State {
+    fn connect(&mut self, controller: Controller) -> Poll<Exit> {
+        println!(
+            "Connected p{}, id: {:016X}, name: {}, file: {}",
+            self.controllers.len() + 1,
+            controller.id(),
+            controller.name(),
+            controller.filename(),
+        );
+        // TODO: check if controller not yet present
+        if !self.controllers.iter().any(|c| c.filename() == controller.filename()) {
+            self.controllers.push(controller);
+        }
+        Pending
+    }
+
+    fn event(&mut self, id: usize, event: Event) -> Poll<Exit> {
+        let player = id + 1;
+        //println!("p{}: {}", player, event);
+        match event {
+            Event::Disconnect => {
+                println!("p{}: {}", player, event);
+                self.controllers.swap_remove(id);
+            }
+            Event::MenuR(true) => {
+                println!("p{}: {}", player, event);
+                return Ready(player);
+            },
+            Event::ActionA(pressed) => {
+                println!("p{}: {}", player, event);
+                self.controllers[id].rumble(f32::from(u8::from(pressed)));
+            }
+            Event::ActionB(pressed) => {
+                println!("p{}: {}", player, event);
+                self.controllers[id].rumble(0.5 * f32::from(u8::from(pressed)));
+            }
+            Event::BumperL(pressed) => {
+                println!("p{}: {}", player, event);
+                self.rumble.0 = f32::from(u8::from(pressed));
+                self.controllers[id].rumble(self.rumble);
+            }
+            Event::BumperR(pressed) => {
+                println!("p{}: {}", player, event);
+                self.rumble.1 = f32::from(u8::from(pressed));
+                self.controllers[id].rumble(self.rumble);
+            }
+            _ => {}
+        }
+        Pending
+    }
+}
+
+async fn event_loop() {
+    let mut state = State {
+        listener: Listener::default(),
+        controllers: Vec::new(),
+        rumble: (0.0, 0.0),
+    };
+
+    loop {
+        let controller = (&mut state.listener).await;
+        let _ = state.connect(controller);
+    }
+    // let player_id = Loop::new(&mut state)
+    //     .when(|s| &mut s.listener, State::connect)
+    //     .poll(|s| &mut s.controllers, State::event)
+    //     .await;
+
+    //println!("p{} ended the session", player_id);
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut io = open_serial_port("/dev/ttyUSB0")?;
 
-    let controllers: RefCell<Vec<_>> = RefCell::new(Vec::<Controller>::new());
+    //let controllers: RefCell<Vec<_>> = RefCell::new(Vec::<Controller>::new());
     
-    let mut listener = Listener::default();
+    //let mut listener = Listener::default();
+
+    // loop {
+    //     let c = (&mut listener).await;
+    //     println!("New controller: {} {} ({})", c.name(), c.id(), c.filename());
+    // }
+
+    let handle = std::thread::spawn(|| {
+        pasts::block_on(event_loop());
+    });
 
     let mut sigterm_stream = signal(SignalKind::terminate())?;
 
     loop {
 
         tokio::select! {
-            new_controller = (&mut listener) => {
-                println!("New device connected: {} ({})", new_controller.name(), new_controller.filename());
-                // if new_controller.name() != "Wireless Controller Motion Sensors" {
-                //     controllers.borrow_mut().push(new_controller);
-                // }
-            },
+            // new_controller = (&mut listener) => {
+            //     println!("New device connected: {} ({})", new_controller.name(), new_controller.filename());
+            //     //if new_controller.name() == "Wireless Controller Touchpad" {
+            //         controllers.borrow_mut().push(new_controller);
+            //     //}
+            // },
             serial_line = read_serial_line(&mut io) => {
                 let line = serial_line.expect("Failed to read line from serial");
                 println!("serial: {}", line);
@@ -45,29 +142,29 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 break;
             },
             
-            Some((event, controller_index)) = next_event(&controllers) => {
-                println!("{:?}", event);
-                match event {
-                    Event::Disconnect => {
-                        let disconnected_controller = controllers.borrow_mut().remove(controller_index);
-                        println!("Controller {name} disconnected", name = disconnected_controller.name());
-                    }
-                    Event::ActionA(_pressed) => {
-                        //controllers[0].rumble(1.0f32);
-                    }
-                    Event::ActionB(pressed) => {
-                        io.send(format!("{}", pressed)).await.expect("Failed to send text");
-                        //controller.ruaddaassww432141s4a2w3d1s4able(f32::from(u8::from(pressed)));
-                    }
-                    Event::BumperL(_pressed) => {
+            // Some((event, controller_index)) = next_event(&controllers) => {
+            //     println!("{:?}", event);
+            //     match event {
+            //         Event::Disconnect => {
+            //             let disconnected_controller = controllers.borrow_mut().remove(controller_index);
+            //             println!("Controller {name} disconnected", name = disconnected_controller.name());
+            //         }
+            //         Event::ActionA(_pressed) => {
+            //             //controllers[0].rumble(1.0f32);
+            //         }
+            //         Event::ActionB(pressed) => {
+            //             io.send(format!("{}", pressed)).await.expect("Failed to send text");
+            //             //controller.ruaddaassww432141s4a2w3d1s4able(f32::from(u8::from(pressed)));
+            //         }
+            //         Event::BumperL(_pressed) => {
                         
-                    }
-                    Event::BumperR(_pressed) => {
+            //         }
+            //         Event::BumperR(_pressed) => {
 
-                    }
-                    _ => {}
-                }
-            },
+            //         }
+            //         _ => {}
+            //     }
+            // },
 
         }
         println!("---");

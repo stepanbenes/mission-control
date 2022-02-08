@@ -9,7 +9,6 @@
 // LICENSE_MIT.txt and LICENSE_BOOST_1_0.txt).  This file may not be copied,
 // modified, or distributed except according to those terms.
 
-use std::rc::Rc;
 use crate::stick::{Event, Remap};
 use smelling_salts::{Device, Watcher};
 use std::cmp::Ordering;
@@ -24,11 +23,7 @@ use std::task::{Context, Poll};
 // https://github.com/torvalds/linux/blob/master/include/uapi/linux/input-event-codes.h
 
 // Convert Linux BTN press to stick Event.
-fn linux_btn_to_stick_event(
-    pending: &mut Vec<Event>,
-    btn: c_ushort,
-    pushed: bool,
-) {
+fn linux_btn_to_stick_event(pending: &mut Vec<Event>, btn: c_ushort, pushed: bool) {
     pending.push(match btn {
         0x08B /* KEY_MENU */ => Event::Context(pushed),
 
@@ -125,11 +120,7 @@ fn linux_btn_to_stick_event(
 }
 
 // Convert Linux REL axis to stick Event.
-fn linux_rel_to_stick_event(
-    pending: &mut Vec<Event>,
-    axis: c_ushort,
-    value: c_int,
-) {
+fn linux_rel_to_stick_event(pending: &mut Vec<Event>, axis: c_ushort, value: c_int) {
     match axis {
 		0x00 /* REL_X */ => pending.push(Event::MouseX(value as f64)),
 		0x01 /* REL_Y */ => pending.push(Event::MouseY(value as f64)),
@@ -173,11 +164,7 @@ fn linux_rel_to_stick_event(
 }
 
 // Convert Linux ABS axis to stick Event.
-fn linux_abs_to_stick_event(
-    pending: &mut Vec<Event>,
-    axis: c_ushort,
-    value: c_int,
-) {
+fn linux_abs_to_stick_event(pending: &mut Vec<Event>, axis: c_ushort, value: c_int) {
     match axis {
 		0x00 /* ABS_X */ => pending.push(Event::JoyX(value as f64)),
 		0x01 /* ABS_Y */ => pending.push(Event::JoyY(value as f64)),
@@ -302,9 +289,9 @@ fn linux_evdev_to_stick_event(pending: &mut Vec<Event>, e: EvdevEv) {
         0x03 /* ABS */ => linux_abs_to_stick_event(pending, e.ev_code, e.ev_value),
         0x04 /* MSC */ => {
             if e.ev_code != 4 { // Ignore Misc./Scan Events
-                let (code, val) = (e.ev_code, e.ev_value);
-                eprintln!("Unknown Linux Misc Code: {}, Value: {}", code, val);
-                eprintln!("Report at https://github.com/libcala/stick/issues");
+                // let (code, val) = (e.ev_code, e.ev_value);
+                // eprintln!("Unknown Linux Misc Code: {}, Value: {}", code, val);
+                // eprintln!("Report at https://github.com/libcala/stick/issues");
             }
         }
         0x15 /* FF */ => {}, // Ignore Force Feedback Input Events
@@ -488,9 +475,7 @@ fn joystick_ff(fd: RawFd, code: i16, strong: f32, weak: f32) {
     };
     let play: *const _ = play;
     unsafe {
-        if write(fd, play.cast(), size_of::<EvdevEv>())
-            != size_of::<EvdevEv>() as isize
-        {
+        if write(fd, play.cast(), size_of::<EvdevEv>()) != size_of::<EvdevEv>() as isize {
             let errno = *__errno_location();
             if errno != 19 && errno != 9 {
                 // 19 = device unplugged, ignore
@@ -553,16 +538,16 @@ struct Controller {
 }
 
 impl Controller {
-    fn new(fd: c_int) -> Option<Self> {
+    fn new(fd: c_int) -> Self {
         // Enable evdev async.
         if unsafe { fcntl(fd, 0x4, 0x800) } == -1 {
-            return None;
+            //return None;
         }
 
         // Get the hardware id of this controller.
         let mut id = MaybeUninit::<u64>::uninit();
         if unsafe { ioctl(fd, 0x_8008_4502, id.as_mut_ptr().cast()) } == -1 {
-            return None;
+            //return None;
         }
 
         let id = unsafe { id.assume_init() }.to_be();
@@ -570,7 +555,7 @@ impl Controller {
         // Get the min and max absolute values for axis.
         let mut a = MaybeUninit::<AbsInfo>::uninit();
         if unsafe { ioctl(fd, 0x_8018_4540, a.as_mut_ptr().cast()) } == -1 {
-            return None;
+            //return None;
         }
 
         let a = unsafe { a.assume_init() };
@@ -591,7 +576,7 @@ impl Controller {
         let fd = device.raw();
         let mut a = MaybeUninit::<[c_char; 256]>::uninit();
         if unsafe { ioctl(fd, 0x80FF_4506, a.as_mut_ptr().cast()) } == -1 {
-            return None;
+            //return None;
         }
 
         let a = unsafe { a.assume_init() };
@@ -599,7 +584,7 @@ impl Controller {
         let name = name.to_string_lossy().to_string();
 
         // Return
-        Some(Self {
+        Self {
             device,
             id,
             rumble,
@@ -608,7 +593,7 @@ impl Controller {
             flat,
             pending_events,
             name,
-        })
+        }
     }
 }
 
@@ -701,11 +686,18 @@ struct Listener {
     remap: Remap,
 }
 
+lazy_static! {
+    static ref EVENT_FILE_REGEX: regex::Regex = regex::Regex::new("event([1-9][0-9]*)").unwrap(); // ignore event0
+}
+
 impl Listener {
+
     fn new(remap: Remap) -> Self {
         const CLOEXEC: c_int = 0o2000000;
         const NONBLOCK: c_int = 0o0004000;
-        const ATTRIB: c_uint = 0x00000004;
+        const IN_ATTRIB: c_uint = 0x00000004;
+        const IN_CREATE: c_uint = 0x00000100;
+        const IN_DELETE: c_uint = 0x00000200;
         const DIR: &[u8] = b"/dev/input/\0";
 
         // Create an inotify.
@@ -715,7 +707,9 @@ impl Listener {
         }
 
         // Start watching the controller directory.
-        if unsafe { inotify_add_watch(listen, DIR.as_ptr(), ATTRIB) } == -1 {
+        if unsafe { inotify_add_watch(listen, DIR.as_ptr(), IN_ATTRIB) }
+            == -1
+        {
             panic!("Couldn't add inotify watch!");
         }
 
@@ -729,11 +723,9 @@ impl Listener {
         }
     }
 
-    fn controller(
-        remap: &Remap,
-        mut filename: String,
-    ) -> Poll<crate::Controller> {
-        if filename.contains("event") {
+    fn controller(remap: &Remap, mut filename: String) -> Poll<crate::Controller> {
+        if let Some(capture) = EVENT_FILE_REGEX.captures_iter(&filename).next() {
+            println!("{}", capture[0].to_string());
             filename.push('\0');
             // Try read & write first
             let mut fd = unsafe { open(filename.as_ptr(), 2) };
@@ -747,13 +739,12 @@ impl Listener {
             }
             // If one succeeded, return that controller.
             if fd != -1 {
-                if let Some(controller) = Controller::new(fd) {
-                    return Poll::Ready(crate::Controller::new(
-                        Box::new(controller),
-                        remap,
-                        filename,
-                    ));
-                }
+                let controller = Controller::new(fd);
+                return Poll::Ready(crate::Controller::new(
+                    Box::new(controller),
+                    remap,
+                    filename,
+                ));
             }
         }
         Poll::Pending
@@ -763,38 +754,42 @@ impl Listener {
 impl super::Listener for Listener {
     fn poll(&mut self, cx: &mut Context<'_>) -> Poll<crate::Controller> {
         // Read the directory for ctrls if initialization hasn't completed yet.
-        if let Some(ref mut read_dir) = &mut self.read_dir {
-            for dir_entry in read_dir.flatten() {
+        if let Some(ref mut read_dir_f) = &mut self.read_dir {
+            for dir_entry in read_dir_f.flatten() {
                 let file = dir_entry.path();
                 let path = file.as_path().to_string_lossy().to_string();
-                if let Poll::Ready(controller) =
-                    Self::controller(&self.remap, path)
-                {
+                if let Poll::Ready(controller) = Self::controller(&self.remap, path) {
                     return Poll::Ready(controller);
                 }
             }
-            self.read_dir = None;
+            self.read_dir = Some(Box::new(read_dir("/dev/input/").unwrap()));
         }
 
-        // Read the Inotify Event.
-        let mut ev = MaybeUninit::<InotifyEv>::zeroed();
-        let read = unsafe {
-            read(
-                self.device.raw(),
-                ev.as_mut_ptr().cast(),
-                size_of::<InotifyEv>(),
-            )
-        };
-        if read > 0 {
-            let ev = unsafe { ev.assume_init() };
-            let len = unsafe { strlen(&ev.name[0]) };
-            let filename = String::from_utf8_lossy(&ev.name[..len]);
-            let path = format!("/dev/input/{}", filename);
-            if let Poll::Ready(controller) = Self::controller(&self.remap, path)
-            {
-                return Poll::Ready(controller);
-            }
-        }
+        println!("new INotify event");
+
+        // // Read the Inotify Event.
+        // let mut ev = MaybeUninit::<InotifyEv>::zeroed();
+        // let read = unsafe {
+        //     read(
+        //         self.device.raw(),
+        //         ev.as_mut_ptr().cast(),
+        //         size_of::<InotifyEv>(),
+        //     )
+        // };
+        // if read > 0 {
+        //     let ev = unsafe { ev.assume_init() };
+        //     let len = unsafe { strlen(&ev.name[0]) };
+        //     let filename = String::from_utf8_lossy(&ev.name[..len]);
+        //     println!("INotify event: {}", filename);
+        //     let path = format!("/dev/input/{}", filename);
+        //     if let Poll::Ready(controller) = Self::controller(&self.remap, path) {
+        //         return Poll::Ready(controller);
+        //     }
+        // }
+        // // else {
+        // //     let errno = unsafe { *__errno_location() };
+        // //     println!("errno: {}", errno);
+        // // }
 
         // Register waker & go to sleep for this device
         self.device.sleep(cx)
@@ -807,8 +802,7 @@ impl Drop for Listener {
     }
 }
 
-static ENABLED: std::sync::atomic::AtomicBool =
-    std::sync::atomic::AtomicBool::new(true);
+static ENABLED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(true);
 
 struct Global;
 

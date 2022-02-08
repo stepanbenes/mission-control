@@ -176,6 +176,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "lazy_static"
+version = "1.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
+
+[[package]]
 name = "libc"
 version = "0.2.117"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -272,6 +278,9 @@ name = "mission-control"
 version = "0.1.0"
 dependencies = [
  "futures",
+ "lazy_static",
+ "pasts",
+ "regex",
  "smelling_salts",
  "tokio",
  "tokio-serial",
@@ -353,6 +362,12 @@ dependencies = [
  "smallvec",
  "winapi",
 ]
+
+[[package]]
+name = "pasts"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "98a644f00d22e5a6c8a9aea7f4e0ab08d890b542e7a139d2b9f15620b9a47f4b"
 
 [[package]]
 name = "pin-project-lite"
