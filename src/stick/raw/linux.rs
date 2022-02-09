@@ -683,16 +683,57 @@ impl Drop for Controller {
 struct Listener {
     device: Device,
     read_dir: Option<Box<std::fs::ReadDir>>,
-    remap: Remap,
 }
+
 
 lazy_static! {
     static ref EVENT_FILE_REGEX: regex::Regex = regex::Regex::new("event([1-9][0-9]*)").unwrap(); // ignore event0
 }
 
+struct ControllerProvider {
+    remap: Remap,
+}
+
+impl ControllerProvider {
+    fn new() -> Self {
+        Self {
+            remap: Remap::default(),
+        }
+    }
+}
+
+impl super::ControllerProvider for ControllerProvider {
+    fn create_controller(&self, mut filename: String) -> Option<crate::Controller> {
+        if let Some(capture) = EVENT_FILE_REGEX.captures_iter(&filename).next() {
+            println!("{}", capture[0].to_string());
+            filename.push('\0');
+            // Try read & write first
+            let mut fd = unsafe { open(filename.as_ptr(), 2) };
+            // Try readonly second (bluetooth controller - input device)
+            if fd == -1 {
+                fd = unsafe { open(filename.as_ptr(), 0) };
+            }
+            // Try writeonly third (bluetooth haptic device)
+            if fd == -1 {
+                fd = unsafe { open(filename.as_ptr(), 1) };
+            }
+            // If one succeeded, return that controller.
+            if fd != -1 {
+                let controller = Controller::new(fd);
+                return Some(crate::Controller::new(
+                    Box::new(controller),
+                    &self.remap,
+                    filename,
+                ));
+            }
+        }
+        None
+    }
+}
+
 impl Listener {
 
-    fn new(remap: Remap) -> Self {
+    fn new() -> Self {
         const CLOEXEC: c_int = 0o2000000;
         const NONBLOCK: c_int = 0o0004000;
         const IN_ATTRIB: c_uint = 0x00000004;
@@ -718,44 +759,11 @@ impl Listener {
             device: Device::new(listen, Watcher::new().input()),
             //
             read_dir: Some(Box::new(read_dir("/dev/input/").unwrap())),
-            //
-            remap,
         }
-    }
-
-    fn controller(remap: &Remap, mut filename: String) -> Option<crate::Controller> {
-        if let Some(capture) = EVENT_FILE_REGEX.captures_iter(&filename).next() {
-            println!("{}", capture[0].to_string());
-            filename.push('\0');
-            // Try read & write first
-            let mut fd = unsafe { open(filename.as_ptr(), 2) };
-            // Try readonly second (bluetooth controller - input device)
-            if fd == -1 {
-                fd = unsafe { open(filename.as_ptr(), 0) };
-            }
-            // Try writeonly third (bluetooth haptic device)
-            if fd == -1 {
-                fd = unsafe { open(filename.as_ptr(), 1) };
-            }
-            // If one succeeded, return that controller.
-            if fd != -1 {
-                let controller = Controller::new(fd);
-                return Some(crate::Controller::new(
-                    Box::new(controller),
-                    remap,
-                    filename,
-                ));
-            }
-        }
-        None
     }
 }
 
 impl super::Listener for Listener {
-    fn create_controller(&mut self, path: String) -> Option<crate::Controller> {
-        Self::controller(&self.remap, path)
-    }
-
     fn poll(&mut self, cx: &mut Context<'_>) -> Poll<String> {
         // Read the directory for ctrls if initialization hasn't completed yet.
         if let Some(ref mut read_dir_f) = &mut self.read_dir {
@@ -818,8 +826,12 @@ impl super::Global for Global {
         ENABLED.store(false, std::sync::atomic::Ordering::Relaxed);
     }
     /// Create a new listener.
-    fn listener(&self, remap: Remap) -> Box<dyn super::Listener> {
-        Box::new(Listener::new(remap))
+    fn listener(&self) -> Box<dyn super::Listener> {
+        Box::new(Listener::new())
+    }
+    
+    fn controller_provider(&self) -> Box<dyn super::ControllerProvider> {
+        Box::new(ControllerProvider::new())
     }
 }
 

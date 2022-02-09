@@ -13,7 +13,7 @@ use tokio_util::codec::{Framed, LinesCodec};
 
 use tokio_serial::{SerialPortBuilderExt, SerialStream};
 
-use stick::{Controller, Event, Listener};
+use stick::{Controller, Event, Listener, ControllerProvider};
 
 // ==================================================
 
@@ -44,7 +44,7 @@ impl State {
 
 async fn event_loop(tx: mpsc::Sender<String>) {
     let mut state = State {
-        listener: Listener::default(),
+        listener: Listener::new(),
         controllers: Vec::new(),
     };
 
@@ -68,7 +68,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let controllers: RefCell<Vec<_>> = RefCell::new(Vec::<Controller>::new());
     
-    let mut listener = Listener::default();
+    let controller_provider = ControllerProvider::new();
 
     // loop {
     //     let c = (&mut listener).await;
@@ -108,11 +108,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 break;
             },
             Some(controller_path) = rx.recv() => {
-                tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
-                if let Some(controller) = listener.create_controller(controller_path) {
-                    println!("Received new controller '{}', ('{}')", controller.name(), controller.filename());
-                    controllers.borrow_mut().push(controller);
-                }
+                 tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
+                 if let Some(controller) = controller_provider.create_controller(controller_path) {
+                     println!("Received new controller '{}', ('{}')", controller.name(), controller.filename());
+                     controllers.borrow_mut().push(controller);
+                 }
             },
             
             Some((event, controller_index)) = next_event(&controllers) => {

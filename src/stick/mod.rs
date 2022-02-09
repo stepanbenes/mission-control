@@ -127,7 +127,7 @@ mod focus;
 mod listener;
 mod raw;
 
-pub use ctlr::{Controller, Remap};
+pub use ctlr::{Controller, Remap, ControllerProvider};
 pub use event::Event;
 pub use focus::{focus, unfocus};
 pub use listener::Listener;

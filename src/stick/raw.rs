@@ -56,7 +56,12 @@ impl Listener for FakeListener {
     fn poll(&mut self, _cx: &mut Context<'_>) -> Poll<String> {
         Poll::Pending
     }
-    fn create_controller(&mut self, _path: String) -> Option<crate::Controller> {
+}
+
+struct FakeControllerProvider;
+
+impl ControllerProvider for FakeControllerProvider {
+    fn create_controller(&self, path: String) -> Option<crate::Controller> {
         None
     }
 }
@@ -65,7 +70,10 @@ impl Listener for FakeListener {
 pub(crate) trait Listener {
     /// Poll for controllers.
     fn poll(&mut self, cx: &mut Context<'_>) -> Poll<String>;
-    fn create_controller(&mut self, path: String) -> Option<crate::Controller>;
+}
+
+pub(crate) trait ControllerProvider {
+    fn create_controller(&self, path: String) -> Option<crate::Controller>;
 }
 
 /// Controller Implementation
@@ -101,8 +109,12 @@ pub(crate) trait Global: std::any::Any {
     /// Disable all events (when window leaves focus).
     fn disable(&self) {}
     /// Create a new listener.
-    fn listener(&self, _remap: Remap) -> Box<dyn Listener> {
+    fn listener(&self) -> Box<dyn Listener> {
         Box::new(FakeListener)
+    }
+    /// Create a new controller provider.
+    fn controller_provider(&self) -> Box<dyn ControllerProvider> {
+        Box::new(FakeControllerProvider)
     }
 }
 

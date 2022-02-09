@@ -10,7 +10,6 @@
 // modified, or distributed except according to those terms.
 
 use crate::Controller;
-use crate::stick::Remap;
 use std::fmt::Debug;
 use std::future::Future;
 use std::pin::Pin;
@@ -26,20 +25,10 @@ impl Debug for Listener {
     }
 }
 
-impl Default for Listener {
-    fn default() -> Self {
-        Self::new(Remap::default())
-    }
-}
-
 impl Listener {
     /// Create a new listener for when new controllers are plugged in.
-    pub fn new(remap: Remap) -> Self {
-        Self(crate::stick::raw::GLOBAL.with(|g| g.listener(remap)))
-    }
-
-    pub fn create_controller(&mut self, path: String) -> Option<Controller> {
-        self.0.as_mut().create_controller(path)
+    pub fn new() -> Self {
+        Self(crate::stick::raw::GLOBAL.with(|g| g.listener()))
     }
 }
 

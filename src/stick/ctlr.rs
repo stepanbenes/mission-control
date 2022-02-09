@@ -620,3 +620,15 @@ impl Rumble for (f32, f32) {
         self.1.clamp(0.0, 1.0)
     }
 }
+
+pub struct ControllerProvider(Box<dyn crate::stick::raw::ControllerProvider>);
+
+impl ControllerProvider {
+    pub fn new() -> Self {
+        Self(crate::stick::raw::GLOBAL.with(|g| g.controller_provider()))
+    }
+
+    pub fn create_controller(&self, path: String) -> Option<Controller> {
+        self.0.as_ref().create_controller(path)
+    }
+}
