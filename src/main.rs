@@ -20,78 +20,39 @@ use stick::{Controller, Event, Listener};
 use pasts::Loop;
 use std::task::Poll::{self, Pending, Ready};
 
+use tokio::sync::mpsc;
 
 type Exit = usize;
 
 struct State {
     listener: Listener,
-    controllers: Vec<Controller>,
-    rumble: (f32, f32),
+    controllers: Vec<String>,
 }
 
 impl State {
-    fn connect(&mut self, controller_path: String) -> Poll<Exit> {
-        if let Some(controller) = self.listener.create_controller(controller_path) {
-            if !self.controllers.iter().any(|c| c.filename() == controller.filename()) { // check if controller not yet present
-                println!(
-                    "Connected controller, id: {:016X}, name: {}, file: {}",
-                    controller.id(),
-                    controller.name(),
-                    controller.filename(),
-                );
-                self.controllers.push(controller);
-                // TODO: send controller via channel to main thread
-            }
+    fn connect(&mut self, controller_path: &str) -> bool {
+        if !self.controllers.iter().any(|path| path == controller_path) { // check if controller not yet present
+            //println!("Connected controller, file: {}", controller_path);
+            self.controllers.push(controller_path.to_string());
+            true
         }
-        Pending
-    }
-
-    fn event(&mut self, id: usize, event: Event) -> Poll<Exit> {
-        let player = id + 1;
-        //println!("p{}: {}", player, event);
-        match event {
-            Event::Disconnect => {
-                println!("p{}: {}", player, event);
-                self.controllers.swap_remove(id);
-            }
-            Event::MenuR(true) => {
-                println!("p{}: {}", player, event);
-                return Ready(player);
-            },
-            Event::ActionA(pressed) => {
-                println!("p{}: {}", player, event);
-                self.controllers[id].rumble(f32::from(u8::from(pressed)));
-            }
-            Event::ActionB(pressed) => {
-                println!("p{}: {}", player, event);
-                self.controllers[id].rumble(0.5 * f32::from(u8::from(pressed)));
-            }
-            Event::BumperL(pressed) => {
-                println!("p{}: {}", player, event);
-                self.rumble.0 = f32::from(u8::from(pressed));
-                self.controllers[id].rumble(self.rumble);
-            }
-            Event::BumperR(pressed) => {
-                println!("p{}: {}", player, event);
-                self.rumble.1 = f32::from(u8::from(pressed));
-                self.controllers[id].rumble(self.rumble);
-            }
-            _ => {}
+        else {
+            false
         }
-        Pending
     }
 }
 
-async fn event_loop() {
+async fn event_loop(tx: mpsc::Sender<String>) {
     let mut state = State {
         listener: Listener::default(),
         controllers: Vec::new(),
-        rumble: (0.0, 0.0),
     };
 
     loop {
         let controller_path = (&mut state.listener).await;
-        let _ = state.connect(controller_path);
+        if state.connect(&controller_path) {
+            tx.send(controller_path).await.unwrap();
+        }
     }
     // let player_id = Loop::new(&mut state)
     //     .when(|s| &mut s.listener, State::connect)
@@ -105,18 +66,22 @@ async fn event_loop() {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut io = open_serial_port("/dev/ttyUSB0")?;
 
-    //let controllers: RefCell<Vec<_>> = RefCell::new(Vec::<Controller>::new());
+    let controllers: RefCell<Vec<_>> = RefCell::new(Vec::<Controller>::new());
     
-    //let mut listener = Listener::default();
+    let mut listener = Listener::default();
 
     // loop {
     //     let c = (&mut listener).await;
     //     println!("New controller: {} {} ({})", c.name(), c.id(), c.filename());
     // }
 
+    let (tx, mut rx) = mpsc::channel::<String>(32);
+
     let handle = std::thread::spawn(|| {
-        pasts::block_on(event_loop());
+        pasts::block_on(event_loop(tx));
     });
+
+    //if let Some(controller) = self.listener.create_controller(controller_path) {
 
     let mut sigterm_stream = signal(SignalKind::terminate())?;
 
@@ -142,33 +107,40 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 println!("Received SIGTERM. Shutting down.");
                 break;
             },
+            Some(controller_path) = rx.recv() => {
+                tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
+                if let Some(controller) = listener.create_controller(controller_path) {
+                    println!("Received new controller '{}', ('{}')", controller.name(), controller.filename());
+                    controllers.borrow_mut().push(controller);
+                }
+            },
             
-            // Some((event, controller_index)) = next_event(&controllers) => {
-            //     println!("{:?}", event);
-            //     match event {
-            //         Event::Disconnect => {
-            //             let disconnected_controller = controllers.borrow_mut().remove(controller_index);
-            //             println!("Controller {name} disconnected", name = disconnected_controller.name());
-            //         }
-            //         Event::ActionA(_pressed) => {
-            //             //controllers[0].rumble(1.0f32);
-            //         }
-            //         Event::ActionB(pressed) => {
-            //             io.send(format!("{}", pressed)).await.expect("Failed to send text");
-            //             //controller.ruaddaassww432141s4a2w3d1s4able(f32::from(u8::from(pressed)));
-            //         }
-            //         Event::BumperL(_pressed) => {
+            Some((event, controller_index)) = next_event(&controllers) => {
+                //println!("{:?}", event);
+                match event {
+                    Event::Disconnect => {
+                        let disconnected_controller = controllers.borrow_mut().remove(controller_index);
+                        println!("Controller {name} disconnected", name = disconnected_controller.name());
+                    }
+                    Event::ActionA(_pressed) => {
+                        //controllers[0].rumble(1.0f32);
+                    }
+                    Event::ActionB(pressed) => {
+                        io.send(format!("{}", pressed)).await.expect("Failed to send text");
+                        //controller.ruaddaassww432141s4a2w3d1s4able(f32::from(u8::from(pressed)));
+                    }
+                    Event::BumperL(_pressed) => {
                         
-            //         }
-            //         Event::BumperR(_pressed) => {
+                    }
+                    Event::BumperR(_pressed) => {
 
-            //         }
-            //         _ => {}
-            //     }
-            // },
+                    }
+                    _ => {}
+                }
+            },
 
         }
-        println!("---");
+        //println!("---");
     }
 
     Ok(())

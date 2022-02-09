@@ -707,7 +707,7 @@ impl Listener {
         }
 
         // Start watching the controller directory.
-        if unsafe { inotify_add_watch(listen, DIR.as_ptr(), IN_ATTRIB) }
+        if unsafe { inotify_add_watch(listen, DIR.as_ptr(), IN_CREATE | IN_DELETE | IN_ATTRIB) }
             == -1
         {
             panic!("Couldn't add inotify watch!");
