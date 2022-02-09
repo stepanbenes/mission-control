@@ -626,7 +626,7 @@ impl super::Controller for Controller {
             if bytes <= 0 {
                 let errno = unsafe { *__errno_location() };
                 if errno == 19 {
-                    return Poll::Ready(Event::Disconnect);
+                    return Poll::Ready(Event::Disconnect(None));
                 }
                 assert_eq!(errno, 11);
                 // If no new controllers found, return pending.
@@ -677,7 +677,7 @@ impl super::Controller for Controller {
 impl Drop for Controller {
     fn drop(&mut self) {
         assert_ne!(unsafe { close(self.device.stop()) }, -1);
-        println!("controller droped");
+        //println!("controller droped");
     }
 }
 
@@ -704,19 +704,19 @@ impl ControllerProvider {
 }
 
 impl super::ControllerProvider for ControllerProvider {
-    fn create_controller(&self, mut filename: String) -> Option<crate::Controller> {
-        if let Some(capture) = EVENT_FILE_REGEX.captures_iter(&filename).next() {
-            println!("{}", capture[0].to_string());
-            filename.push('\0');
+    fn create_controller(&self, filename: String) -> Option<crate::Controller> {
+        if let Some(_capture) = EVENT_FILE_REGEX.captures_iter(&filename).next() {
+            //println!("{}", capture[0].to_string());
+            let filename_zero_ended = { let mut n = filename.clone(); n.push('\0'); n };
             // Try read & write first
-            let mut fd = unsafe { open(filename.as_ptr(), 2) };
+            let mut fd = unsafe { open(filename_zero_ended.as_ptr(), 2) };
             // Try readonly second (bluetooth controller - input device)
             if fd == -1 {
-                fd = unsafe { open(filename.as_ptr(), 0) };
+                fd = unsafe { open(filename_zero_ended.as_ptr(), 0) };
             }
             // Try writeonly third (bluetooth haptic device)
             if fd == -1 {
-                fd = unsafe { open(filename.as_ptr(), 1) };
+                fd = unsafe { open(filename_zero_ended.as_ptr(), 1) };
             }
             // If one succeeded, return that controller.
             if fd != -1 {
@@ -776,7 +776,7 @@ impl super::Listener for Listener {
             self.read_dir = Some(Box::new(read_dir("/dev/input/").unwrap()));
         }
 
-        println!("new INotify event");
+        //println!("new INotify event");
 
         // // Read the Inotify Event.
         // let mut ev = MaybeUninit::<InotifyEv>::zeroed();

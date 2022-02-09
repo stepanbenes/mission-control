@@ -433,10 +433,10 @@ impl Controller {
 
     fn process(&mut self, event: Event) -> Poll<Event> {
         // Do remapping step first.
-        let ev = event.to_id().0;
+        let ev = event.clone().to_id().0;
         let event = if let Some(new_id) = self.remap.maps.get(&ev) {
-            let event = event.remap(new_id.out);
-            if matches!(event, Disconnect) {
+            let event = event.clone().remap(new_id.out);
+            if matches!(event, Disconnect(_)) {
                 return Poll::Pending;
             }
             event
@@ -446,7 +446,7 @@ impl Controller {
         //
         use Event::*;
         match event {
-            Disconnect => Poll::Ready(Disconnect),
+            Disconnect(_) => Poll::Ready(Disconnect(Some(self.filename().to_string()))),
             Exit(p) => self.button(Btn::Exit, Exit, p),
             MenuL(p) => self.button(Btn::MenuL, MenuL, p),
             MenuR(p) => self.button(Btn::MenuR, MenuR, p),
@@ -589,6 +589,12 @@ impl Future for Controller {
         } else {
             Poll::Pending
         }
+    }
+}
+
+impl Drop for Controller {
+    fn drop(&mut self) {
+        println!("Dropping '{}'", self.filename());
     }
 }
 

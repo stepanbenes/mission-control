@@ -10,11 +10,11 @@
 // modified, or distributed except according to those terms.
 
 /// An event from a [`Controller`](crate::Controller).
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Clone)]
 #[non_exhaustive]
 pub enum Event {
     /// Controller unplugged.
-    Disconnect,
+    Disconnect(Option<String>),
     /// Exit / Main / Home / Mode
     Exit(bool),
     /// A / 1 / 4 / Circle.  Action A (Primary action).
@@ -245,7 +245,7 @@ impl Event {
     #[inline(always)]
     fn from_id(id: u8, value: f64) -> Self {
         match id {
-            0x00 => Event::Disconnect,
+            0x00 => Event::Disconnect(None),
             0x01 => Event::Exit(value != 0.0),
             0x02 => Event::ActionA(value != 0.0),
             0x03 => Event::ActionB(value != 0.0),
@@ -349,7 +349,7 @@ impl Event {
     pub(crate) fn to_id(self) -> (u8, f64) {
         use Event::*;
         match self {
-            Disconnect => (0x00, f64::NAN),
+            Disconnect(_) => (0x00, f64::NAN),
             Exit(p) => (0x01, f64::from(u8::from(p))),
             ActionA(p) => (0x02, f64::from(u8::from(p))),
             ActionB(p) => (0x03, f64::from(u8::from(p))),
@@ -465,7 +465,7 @@ impl std::fmt::Display for Event {
         };
 
         match self {
-            Disconnect => write!(f, "Controller Disconnected"),
+            Disconnect(id) => write!(f, "Controller Disconnected ({:?})", id),
             Exit(p) => write!(f, "Exit {}", pushed(p)),
             MenuL(p) => write!(f, "MenuL {}", pushed(p)),
             MenuR(p) => write!(f, "MenuR {}", pushed(p)),

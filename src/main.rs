@@ -3,6 +3,8 @@ mod stick;
 #[macro_use]
 extern crate lazy_static;
 
+use std::time::{Instant, Duration};
+use std::collections::HashMap;
 use std::cell::RefCell;
 use futures::stream::FuturesUnordered;
 use futures::FutureExt;
@@ -65,6 +67,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut io = open_serial_port("/dev/ttyUSB0")?;
 
     let controllers: RefCell<Vec<_>> = RefCell::new(Vec::<Controller>::new());
+    let mut recently_disconnected_controllers = HashMap::<String, Instant>::new();
     
     let controller_provider = ControllerProvider::new();
 
@@ -105,40 +108,66 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 println!("Received SIGTERM. Shutting down.");
                 break;
             },
+
             Some(controller_path) = rx.recv() => {
-                 tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
-                 if let Some(controller) = controller_provider.create_controller(controller_path) {
-                     println!("Received new controller '{}', ('{}')", controller.name(), controller.filename());
-                     controllers.borrow_mut().push(controller);
-                 }
+                //println!("Received message '{}'", controller_path);
+                if !controllers.borrow().iter().any(|c| c.filename() == controller_path) {
+                    let was_recently_disconnected = 
+                        if let Some(time_disconnected) = recently_disconnected_controllers.get(&controller_path) {
+                            if Instant::now() - *time_disconnected < Duration::from_millis(1000) {
+                                true
+                            }
+                            else {
+                                recently_disconnected_controllers.remove(&controller_path);
+                                false
+                            }
+                        }
+                        else {
+                            false
+                        };
+                    if !was_recently_disconnected {
+                        if let Some(controller) = controller_provider.create_controller(controller_path) {
+                            if controller.name() == "Wireless Controller" { // TODO: remove this for recieving motion and touchpad
+                                println!("Received new controller '{}', ('{}')", controller.name(), controller.filename());
+                                controllers.borrow_mut().push(controller);
+                            }
+                        }
+                    }
+                }
             },
             
-            Some((event, controller_index)) = next_event(&controllers) => {
+            Some((event, _controller_index_does_no_work)) = next_event(&controllers) => {
                 //println!("{:?}", event);
                 match event {
-                    Event::Disconnect => {
-                        let disconnected_controller = controllers.borrow_mut().remove(controller_index);
-                        println!("Controller {name} disconnected", name = disconnected_controller.name());
+                    Event::Disconnect(id) => {
+                        println!("Controller {:?} disconnected", id);
+                        if let Some(filename) = id {
+                            controllers.borrow_mut().retain(|c| c.filename() != filename);
+                            recently_disconnected_controllers.insert(filename, Instant::now());
+                        }
                     }
                     Event::ActionA(_pressed) => {
-                        //controllers[0].rumble(1.0f32);
+                        for c in controllers.borrow_mut().iter_mut() {
+                            c.rumble(0.5f32);
+                        }
+                        println!("{:?}", event);
                     }
                     Event::ActionB(pressed) => {
                         io.send(format!("{}", pressed)).await.expect("Failed to send text");
                         //controller.ruaddaassww432141s4a2w3d1s4able(f32::from(u8::from(pressed)));
                     }
                     Event::BumperL(_pressed) => {
-                        
+                        println!("{:?}", event);
                     }
                     Event::BumperR(_pressed) => {
-
+                        println!("{:?}", event);
                     }
                     _ => {}
                 }
             },
 
         }
-        //println!("---");
+        println!("---");
     }
 
     Ok(())
