@@ -677,6 +677,7 @@ impl super::Controller for Controller {
 impl Drop for Controller {
     fn drop(&mut self) {
         assert_ne!(unsafe { close(self.device.stop()) }, -1);
+        println!("controller droped");
     }
 }
 

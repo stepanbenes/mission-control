@@ -50,9 +50,7 @@ async fn event_loop(tx: mpsc::Sender<String>) {
 
     loop {
         let controller_path = (&mut state.listener).await;
-        if state.connect(&controller_path) {
-            tx.send(controller_path).await.unwrap();
-        }
+        tx.send(controller_path).await.unwrap();
     }
     // let player_id = Loop::new(&mut state)
     //     .when(|s| &mut s.listener, State::connect)
