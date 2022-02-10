@@ -136,7 +136,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
             },
             
-            Some((event, _controller_index_does_no_work)) = next_event(&controllers) => {
+            Some((event, controller_index)) = next_event(&controllers) => {
                 //println!("{:?}", event);
                 match event {
                     Event::Disconnect(id) => {
@@ -147,10 +147,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         }
                     }
                     Event::ActionA(_pressed) => {
-                        for c in controllers.borrow_mut().iter_mut() {
-                            c.rumble(0.5f32);
-                        }
                         println!("{:?}", event);
+                        let c = &mut controllers.borrow_mut()[controller_index];
+                        c.rumble(1.0f32);
                     }
                     Event::ActionB(pressed) => {
                         io.send(format!("{}", pressed)).await.expect("Failed to send text");

@@ -19,6 +19,11 @@ use std::os::raw::{c_char, c_int, c_long, c_uint, c_ulong, c_ushort, c_void};
 use std::os::unix::io::RawFd;
 use std::task::{Context, Poll};
 
+use nix::{ioctl_write_ptr};
+
+// taken from https://gitlab.com/gilrs-project/gilrs/-/blob/master/gilrs-core/src/platform/linux/ioctl.rs
+ioctl_write_ptr!(eviocsff, b'E', 0x80, FfEffect);
+
 // Event codes taken from
 // https://github.com/torvalds/linux/blob/master/include/uapi/linux/input-event-codes.h
 
@@ -445,7 +450,7 @@ union FfUnion {
 }
 
 #[repr(C)]
-struct FfEffect {
+pub struct FfEffect {
     stype: u16,
     id: i16,
     direction: u16,
@@ -488,7 +493,46 @@ fn joystick_ff(fd: RawFd, code: i16, strong: f32, weak: f32) {
 
 // Get ID's for rumble and vibrate, if they're supported (otherwise, -1).
 fn joystick_haptic(fd: RawFd, id: i16, strong: f32, weak: f32) -> i16 {
-    let a = &mut FfEffect {
+    
+    // run fftest <device-path> to check available effect
+    // source code: https://github.com/flosse/linuxconsole/blob/master/utils/fftest.c
+
+    // let mut a = FfEffect {
+    //     stype: 0x51, // FF_PERIODIC
+    //     id, /* -1 to allocate new effect */
+    //     direction: 0x4000,	/* Along X axis */
+    //     trigger: FfTrigger {
+    //         button: 0,
+    //         interval: 0,
+    //     },
+    //     replay: FfReplay {
+    //         length: 20000,  /* 20 seconds */
+    //         delay: 1000,
+    //     },
+    //     u: FfUnion {
+    //         periodic: FfPeriodicEffect {
+    //             waveform: 0x5a, // FF_SINE
+    //             period: 100,	/* 0.1 second */
+    //             magnitude: 0x7fff,	/* 0.5 * Maximum magnitude */
+    //             offset: 0,
+    //             phase: 0,
+    //             envelope: FfEnvelope {
+	//                 attack_length: 1000,
+	//                 attack_level: 0x7fff,
+	//                 fade_length: 1000,
+	//                 fade_level: 0x7fff,
+    //             },
+    //             custom_len: 0,
+    //             custom_data: std::ptr::null_mut(),
+    //         },
+    //         // rumble: FfRumbleEffect {
+    //         //     strong_magnitude: (u16::MAX as f32 * strong) as u16,
+    //         //     weak_magnitude: (u16::MAX as f32 * weak) as u16,
+    //         // },
+    //     },
+    // };
+
+    let mut a = FfEffect {
         stype: 0x50,
         id, /*allocate new effect*/
         direction: 0,
@@ -507,11 +551,13 @@ fn joystick_haptic(fd: RawFd, id: i16, strong: f32, weak: f32) -> i16 {
             },
         },
     };
-    let b: *mut _ = a;
-    if unsafe { ioctl(fd, 0x40304580, b.cast()) } == -1 {
-        -1
-    } else {
+
+    // stick crate did not work, fix inspired in girls crate: https://gitlab.com/gilrs-project/gilrs/-/blob/master/gilrs-core/src/platform/linux/ff.rs#L36
+
+    if let Ok(_) = unsafe { eviocsff(fd, &mut a) } {
         a.id
+    } else {
+        -1
     }
 }
 
