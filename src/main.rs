@@ -130,8 +130,8 @@ async fn main_loop(mut rx: mpsc::Receiver<String>) -> Result<(), Box<dyn std::er
                     Event::MenuL(pressed) => {
                         if pressed {
                             let ctrl = &controllers[controller_index];
-                            if let Some(status) = power::check_power_status(ctrl.filename())? {
-                                println!("Power status: {}", status);
+                            if let Some(power_info) = power::check_controller_power(ctrl.filename())? {
+                                println!("Power info: {}", power_info);
                             }
                         }
                     }

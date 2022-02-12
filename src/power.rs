@@ -4,19 +4,31 @@ use std::fs::File;
 use std::io::{self, BufRead};
 use std::path::Path;
 
-pub struct PowerStatus {
+pub struct PowerInfo {
     capacity: u32,
     status: String,
-    device_type: String,
+    power_type: String,
 }
 
-impl Display for PowerStatus {
+// pub enum PowerStatus {
+//     Unknown,
+//     Charging,
+//     Discharging,
+//     NotCharging,
+//     Full,
+// }
+
+// pub enum PowerType {
+//     Battery, UPS, Mains, USB, Wireless,
+// }
+
+impl Display for PowerInfo {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "[{}|{}|{}]", self.device_type, self.capacity, self.status)
+        write!(f, "[{}|{}|{}]", self.power_type, self.capacity, self.status)
     }
 }
 
-pub fn check_power_status(device_path: &str) -> Result<Option<PowerStatus>, Box<dyn std::error::Error>> {
+pub fn check_controller_power(device_path: &str) -> Result<Option<PowerInfo>, Box<dyn std::error::Error>> {
     let map = build_device_address_map()?;
     if let Some(address) = map.get(device_path) {
         if let Some(directory) = find_device_directory(Path::new("/sys/class/power_supply"), address)? {
@@ -31,12 +43,12 @@ pub fn check_power_status(device_path: &str) -> Result<Option<PowerStatus>, Box<
             // type
             let filepath = Path::new(&directory).join("type");
             let file_content = std::fs::read_to_string(&filepath)?;
-            let device_type = file_content.trim().to_string();
+            let power_type = file_content.trim().to_string();
             return Ok(
-                Some(PowerStatus {
+                Some(PowerInfo {
                     capacity,
                     status,
-                    device_type,
+                    power_type,
                 }));
         }
     }
