@@ -33,28 +33,33 @@ lazy_static! {
 
 use tokio::sync::mpsc;
 
-async fn event_loop(tx: mpsc::Sender<String>) {
+async fn gamepad_discovery_loop(tx: mpsc::Sender<String>) {
     let mut listener = Listener::new();
     loop {
         let controller_path = (&mut listener).await;
-        tx.send(controller_path).await.unwrap();
+        tx.send(controller_path).await.expect("Could not send controller path via channel");
     }
 }
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let (tx, rx) = mpsc::channel::<String>(32);
+    
+    let _handle = std::thread::spawn(move || {
+        let runtime2 = tokio::runtime::Runtime::new().expect("Runtime for gamepad discovery loop could not be created");
+        runtime2.block_on(gamepad_discovery_loop(tx))
+    });
+
+    let runtime1 = tokio::runtime::Runtime::new()?;
+    runtime1.block_on(main_loop(rx))
+}
+
+async fn main_loop(mut rx: mpsc::Receiver<String>) -> Result<(), Box<dyn std::error::Error>> {
     let mut io = open_serial_port("/dev/ttyUSB0")?;
 
     let controllers: RefCell<Vec<_>> = RefCell::new(Vec::<Controller>::new());
     let mut recently_disconnected_controllers = HashMap::<String, Instant>::new();
     
     let controller_provider = ControllerProvider::new();
-
-    let (tx, mut rx) = mpsc::channel::<String>(32);
-
-    let _handle = std::thread::spawn(|| {
-        pasts::block_on(event_loop(tx));
-    });
 
     let mut sigterm_stream = signal(SignalKind::terminate())?;
 

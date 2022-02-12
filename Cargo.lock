@@ -280,7 +280,6 @@ dependencies = [
  "futures",
  "lazy_static",
  "nix 0.23.1",
- "pasts",
  "regex",
  "smelling_salts",
  "tokio",
@@ -376,12 +375,6 @@ dependencies = [
  "smallvec",
  "winapi",
 ]
-
-[[package]]
-name = "pasts"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "98a644f00d22e5a6c8a9aea7f4e0ab08d890b542e7a139d2b9f15620b9a47f4b"
 
 [[package]]
 name = "pin-project-lite"
