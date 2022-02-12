@@ -6,7 +6,6 @@ extern crate lazy_static;
 
 use std::time::{Instant, Duration};
 use std::collections::HashMap;
-use std::cell::RefCell;
 use futures::stream::FuturesUnordered;
 use futures::FutureExt;
 use futures::SinkExt;
@@ -56,7 +55,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 async fn main_loop(mut rx: mpsc::Receiver<String>) -> Result<(), Box<dyn std::error::Error>> {
     let mut io = open_serial_port("/dev/ttyUSB0")?;
 
-    let controllers: RefCell<Vec<_>> = RefCell::new(Vec::<Controller>::new());
+    let mut controllers: Vec<_> = Vec::<Controller>::new();
     let mut recently_disconnected_controllers = HashMap::<String, Instant>::new();
     
     let controller_provider = ControllerProvider::new();
@@ -82,7 +81,7 @@ async fn main_loop(mut rx: mpsc::Receiver<String>) -> Result<(), Box<dyn std::er
 
             Some(controller_path) = rx.recv() => {
                 //println!("Received message '{}'", controller_path);
-                if !controllers.borrow().iter().any(|c| c.filename() == controller_path) {
+                if !controllers.iter().any(|c| c.filename() == controller_path) {
                     let was_recently_disconnected = 
                         if let Some(time_disconnected) = recently_disconnected_controllers.get(&controller_path) {
                             if Instant::now() - *time_disconnected < Duration::from_millis(1000) {
@@ -100,26 +99,26 @@ async fn main_loop(mut rx: mpsc::Receiver<String>) -> Result<(), Box<dyn std::er
                         if let Some(controller) = controller_provider.create_controller(controller_path) {
                             if controller.name() == "Wireless Controller" { // TODO: remove this for recieving motion and touchpad
                                 println!("Received new controller '{}', ('{}')", controller.name(), controller.filename());
-                                controllers.borrow_mut().push(controller);
+                                controllers.push(controller);
                             }
                         }
                     }
                 }
             },
             
-            Some((event, controller_index)) = next_event(&controllers) => {
+            Some((event, controller_index)) = next_event(&mut controllers) => {
                 println!("{:?}", event);
                 match event {
                     Event::Disconnect(id) => {
                         println!("Controller {:?} disconnected", id);
                         if let Some(filename) = id {
-                            controllers.borrow_mut().retain(|c| c.filename() != filename);
+                            controllers.retain(|c| c.filename() != filename);
                             recently_disconnected_controllers.insert(filename, Instant::now());
                         }
                     }
                     Event::ActionA(_pressed) => {
                         println!("{:?}", event);
-                        let c = &mut controllers.borrow_mut()[controller_index];
+                        let c = &mut controllers[controller_index];
                         c.rumble(1.0f32);
                     }
                     Event::ActionB(pressed) => {
@@ -128,7 +127,7 @@ async fn main_loop(mut rx: mpsc::Receiver<String>) -> Result<(), Box<dyn std::er
                     }
                     Event::MenuL(pressed) => {
                         if pressed {
-                            let ctrl = &controllers.borrow()[controller_index];
+                            let ctrl = &controllers[controller_index];
                             if let Some(status) = power::check_power_status(ctrl.filename())? {
                                 println!("Power status: {}", status);
                             }
@@ -168,12 +167,11 @@ async fn write_to_serial(io: &mut Framed<SerialStream, LinesCodec>, text: &str) 
     Ok(io.send(text).await?)
 }
 
-async fn next_event(controllers: &RefCell<Vec<Controller>>) -> Option<(Event, usize)> {
-    if controllers.borrow().is_empty() {
+async fn next_event(controllers: &mut Vec<Controller>) -> Option<(Event, usize)> {
+    if controllers.is_empty() {
         return None;
     }
-    let mut controller_list = controllers.borrow_mut();
-    let mut controller_futures = controller_list
+    let mut controller_futures = controllers
             .iter_mut()
             .enumerate()
             .map(|(i, controller)| controller.map(move |event| (event, i)))
