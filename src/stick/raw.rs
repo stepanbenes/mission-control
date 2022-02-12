@@ -13,35 +13,7 @@
 use crate::stick::Event;
 use std::task::{Context, Poll};
 
-#[cfg_attr(
-    any(target_arch = "wasm32", target_arch = "asmjs"),
-    cfg_attr(target_os = "wasi", path = "raw/wasi.rs"),
-    cfg_attr(target_os = "ardaku", path = "raw/ardaku.rs"),
-    cfg_attr(
-        any(target_os = "unknown", target_os = "emscripten"),
-        path = "raw/dom.rs"
-    )
-)]
-#[cfg_attr(
-    not(any(target_arch = "wasm32", target_arch = "asmjs")),
-    cfg_attr(target_os = "linux", path = "raw/linux.rs"),
-    cfg_attr(target_os = "android", path = "raw/android.rs"),
-    cfg_attr(target_os = "macos", path = "raw/macos.rs"),
-    cfg_attr(target_os = "ios", path = "raw/ios.rs"),
-    cfg_attr(target_os = "windows", path = "raw/windows.rs"),
-    cfg_attr(target_os = "fuchsia", path = "raw/fuchsia.rs"),
-    cfg_attr(target_os = "redox", path = "raw/redox.rs"),
-    cfg_attr(
-        any(
-            target_os = "freebsd",
-            target_os = "dragonfly",
-            target_os = "bitrig",
-            target_os = "openbsd",
-            target_os = "netbsd"
-        ),
-        path = "raw/bsd.rs",
-    )
-)]
+#[cfg_attr(target_os = "linux", path = "raw/linux.rs")]
 mod ffi;
 
 /// Global state for when the system implementation can fail.

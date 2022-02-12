@@ -111,10 +111,6 @@
 )]
 #![allow(dead_code)]
 
-#[cfg(target_os = "windows")]
-#[macro_use]
-extern crate log;
-
 mod ctlr;
 mod event;
 mod listener;
