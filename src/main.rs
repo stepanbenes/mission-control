@@ -1,4 +1,5 @@
 mod stick;
+mod power;
 
 #[macro_use]
 extern crate lazy_static;
@@ -16,6 +17,17 @@ use tokio_util::codec::{Framed, LinesCodec};
 use tokio_serial::{SerialPortBuilderExt, SerialStream};
 
 use stick::{Controller, Event, Listener, ControllerProvider};
+
+// ==================================================
+// REGEX definitions >>>
+
+const EVENT_FILE_PATTERN: &str = "event[1-9][0-9]*"; // ignore event0
+
+lazy_static! {
+    static ref EVENT_FILE_REGEX: regex::Regex = regex::Regex::new(EVENT_FILE_PATTERN).unwrap();
+    static ref DEVICE_INFO_ADDRESS_LINE_REGEX: regex::Regex = regex::Regex::new("^U: Uniq=([a-zA-Z0-9:]+)$").unwrap();
+    static ref DEVICE_INFO_HANDLERS_LINE_REGEX: regex::Regex = regex::Regex::new("^H: Handlers=([a-zA-Z0-9\\s]+)$").unwrap();
+}
 
 // ==================================================
 
@@ -137,7 +149,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             },
             
             Some((event, controller_index)) = next_event(&controllers) => {
-                //println!("{:?}", event);
+                println!("{:?}", event);
                 match event {
                     Event::Disconnect(id) => {
                         println!("Controller {:?} disconnected", id);
@@ -155,6 +167,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         io.send(format!("{}", pressed)).await.expect("Failed to send text");
                         //controller.ruaddaassww432141s4a2w3d1s4able(f32::from(u8::from(pressed)));
                     }
+                    Event::MenuL(pressed) => {
+                        if pressed {
+                            let ctrl = &controllers.borrow()[controller_index];
+                            if let Some(status) = power::check_power_status(ctrl.filename())? {
+                                println!("Power status: {}", status);
+                            }
+                        }
+                    }
                     Event::BumperL(_pressed) => {
                         println!("{:?}", event);
                     }
@@ -166,7 +186,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             },
 
         }
-        println!("---");
+        //println!("---");
     }
 
     Ok(())

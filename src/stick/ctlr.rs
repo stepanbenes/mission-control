@@ -592,12 +592,6 @@ impl Future for Controller {
     }
 }
 
-impl Drop for Controller {
-    fn drop(&mut self) {
-        println!("Dropping '{}'", self.filename());
-    }
-}
-
 pub trait Rumble {
     fn left(&self) -> f32;
     fn right(&self) -> f32;

@@ -732,11 +732,6 @@ struct Listener {
     read_dir: Option<Box<std::fs::ReadDir>>,
 }
 
-
-lazy_static! {
-    static ref EVENT_FILE_REGEX: regex::Regex = regex::Regex::new("event([1-9][0-9]*)").unwrap(); // ignore event0
-}
-
 struct ControllerProvider {
     remap: Remap,
 }
@@ -751,8 +746,7 @@ impl ControllerProvider {
 
 impl super::ControllerProvider for ControllerProvider {
     fn create_controller(&self, filename: String) -> Option<crate::Controller> {
-        if let Some(_capture) = EVENT_FILE_REGEX.captures_iter(&filename).next() {
-            //println!("{}", capture[0].to_string());
+        if crate::EVENT_FILE_REGEX.is_match(&filename) {
             let filename_zero_ended = { let mut n = filename.clone(); n.push('\0'); n };
             // Try read & write first
             let mut fd = unsafe { open(filename_zero_ended.as_ptr(), 2) };
