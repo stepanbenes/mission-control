@@ -293,7 +293,7 @@ impl Debug for Controller {
 
 impl Controller {
     #[allow(unused)]
-    pub(crate) fn new(
+    pub fn new(
         raw: Box<dyn crate::stick::raw::Controller>,
         remap: &Remap,
         filename: String,

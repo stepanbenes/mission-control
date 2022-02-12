@@ -238,7 +238,7 @@ pub enum Event {
 
 impl Event {
     #[inline(always)]
-    pub(crate) fn remap(self, new_id: u8) -> Self {
+    pub fn remap(self, new_id: u8) -> Self {
         Self::from_id(new_id, self.to_id().1)
     }
 
@@ -346,7 +346,7 @@ impl Event {
     }
 
     #[inline(always)]
-    pub(crate) fn to_id(self) -> (u8, f64) {
+    pub fn to_id(self) -> (u8, f64) {
         use Event::*;
         match self {
             Disconnect(_) => (0x00, f64::NAN),

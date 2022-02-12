@@ -95,11 +95,6 @@
 //! }
 //! ```
 
-#![doc(
-    html_logo_url = "https://libcala.github.io/logo.svg",
-    html_favicon_url = "https://libcala.github.io/icon.svg",
-    html_root_url = "https://docs.rs/stick"
-)]
 #![deny(unsafe_code)]
 #![warn(
     anonymous_parameters,
@@ -107,15 +102,14 @@
     missing_debug_implementations,
     missing_docs,
     nonstandard_style,
-    rust_2018_idioms,
     single_use_lifetimes,
     trivial_casts,
     trivial_numeric_casts,
-    unreachable_pub,
     unused_extern_crates,
     unused_qualifications,
     variant_size_differences
 )]
+#![allow(dead_code)]
 
 #[cfg(target_os = "windows")]
 #[macro_use]
@@ -123,11 +117,9 @@ extern crate log;
 
 mod ctlr;
 mod event;
-mod focus;
 mod listener;
 mod raw;
 
 pub use ctlr::{Controller, Remap, ControllerProvider};
 pub use event::Event;
-pub use focus::{focus, unfocus};
 pub use listener::Listener;

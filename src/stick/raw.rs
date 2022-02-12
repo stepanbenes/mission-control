@@ -10,7 +10,7 @@
 
 #![allow(unsafe_code)]
 
-use crate::stick::{Event, Remap};
+use crate::stick::Event;
 use std::task::{Context, Poll};
 
 #[cfg_attr(
@@ -61,23 +61,23 @@ impl Listener for FakeListener {
 struct FakeControllerProvider;
 
 impl ControllerProvider for FakeControllerProvider {
-    fn create_controller(&self, path: String) -> Option<crate::Controller> {
+    fn create_controller(&self, _path: String) -> Option<crate::Controller> {
         None
     }
 }
 
 /// Controller Listener Implementation
-pub(crate) trait Listener {
+pub trait Listener {
     /// Poll for controllers.
     fn poll(&mut self, cx: &mut Context<'_>) -> Poll<String>;
 }
 
-pub(crate) trait ControllerProvider {
+pub trait ControllerProvider {
     fn create_controller(&self, path: String) -> Option<crate::Controller>;
 }
 
 /// Controller Implementation
-pub(crate) trait Controller {
+pub trait Controller {
     /// The hardware identifier for this controller.
     fn id(&self) -> u64 {
         0
@@ -103,7 +103,7 @@ pub(crate) trait Controller {
 }
 
 /// Thread local global state implementation.
-pub(crate) trait Global: std::any::Any {
+pub trait Global: std::any::Any {
     /// Enable all events (when window comes in focus).
     fn enable(&self) {}
     /// Disable all events (when window leaves focus).
@@ -119,5 +119,5 @@ pub(crate) trait Global: std::any::Any {
 }
 
 thread_local! {
-    pub(crate) static GLOBAL: Box<dyn Global> = ffi::global();
+    pub static GLOBAL: Box<dyn Global> = ffi::global();
 }

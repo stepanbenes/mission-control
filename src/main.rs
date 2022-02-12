@@ -31,47 +31,14 @@ lazy_static! {
 
 // ==================================================
 
-use pasts::Loop;
-use std::task::Poll::{self, Pending, Ready};
-
 use tokio::sync::mpsc;
 
-type Exit = usize;
-
-struct State {
-    listener: Listener,
-    controllers: Vec<String>,
-}
-
-impl State {
-    fn connect(&mut self, controller_path: &str) -> bool {
-        if !self.controllers.iter().any(|path| path == controller_path) { // check if controller not yet present
-            //println!("Connected controller, file: {}", controller_path);
-            self.controllers.push(controller_path.to_string());
-            true
-        }
-        else {
-            false
-        }
-    }
-}
-
 async fn event_loop(tx: mpsc::Sender<String>) {
-    let mut state = State {
-        listener: Listener::new(),
-        controllers: Vec::new(),
-    };
-
+    let mut listener = Listener::new();
     loop {
-        let controller_path = (&mut state.listener).await;
+        let controller_path = (&mut listener).await;
         tx.send(controller_path).await.unwrap();
     }
-    // let player_id = Loop::new(&mut state)
-    //     .when(|s| &mut s.listener, State::connect)
-    //     .poll(|s| &mut s.controllers, State::event)
-    //     .await;
-
-    //println!("p{} ended the session", player_id);
 }
 
 #[tokio::main]
@@ -83,30 +50,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     let controller_provider = ControllerProvider::new();
 
-    // loop {
-    //     let c = (&mut listener).await;
-    //     println!("New controller: {} {} ({})", c.name(), c.id(), c.filename());
-    // }
-
     let (tx, mut rx) = mpsc::channel::<String>(32);
 
-    let handle = std::thread::spawn(|| {
+    let _handle = std::thread::spawn(|| {
         pasts::block_on(event_loop(tx));
     });
-
-    //if let Some(controller) = self.listener.create_controller(controller_path) {
 
     let mut sigterm_stream = signal(SignalKind::terminate())?;
 
     loop {
 
         tokio::select! {
-            // new_controller = (&mut listener) => {
-            //     println!("New device connected: {} ({})", new_controller.name(), new_controller.filename());
-            //     //if new_controller.name() == "Wireless Controller Touchpad" {
-            //         controllers.borrow_mut().push(new_controller);
-            //     //}
-            // },
             serial_line = read_serial_line(&mut io) => {
                 let line = serial_line.expect("Failed to read line from serial");
                 println!("serial: {}", line);

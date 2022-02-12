@@ -158,7 +158,7 @@ impl XInputHandle {
     /// * `xinput1_2.dll`
     /// * `xinput1_1.dll`
     /// * `xinput9_1_0.dll`
-    pub(crate) fn load_default(
+    pub fn load_default(
     ) -> Result<Rc<XInputHandle>, XInputLoadingFailure> {
         let xinput14 = "xinput1_4.dll";
         let xinput13 = "xinput1_3.dll";
@@ -179,7 +179,7 @@ impl XInputHandle {
     }
 
     /// Attempt to load a specific XInput DLL and get the function pointers.
-    pub(crate) fn load<S: AsRef<str>>(
+    pub fn load<S: AsRef<str>>(
         s: S,
     ) -> Result<XInputHandle, XInputLoadingFailure> {
         let lib_name = wide_null(s);
@@ -411,7 +411,7 @@ enum XInputOptionalFnUsageError {
 /// the raw field to get at the inner value.
 struct XInputState {
     /// The raw value we're wrapping.
-    pub(crate) raw: xinput::XINPUT_STATE,
+    pub raw: xinput::XINPUT_STATE,
 }
 
 impl ::std::cmp::PartialEq for XInputState {
@@ -481,7 +481,7 @@ impl XInputHandle {
     ///
     /// Most commonly, a controller will simply not be connected. Most people don't
     /// have all four slots plugged in all the time.
-    pub(crate) fn get_state(
+    pub fn get_state(
         &self,
         user_index: u32,
     ) -> Result<XInputState, XInputUsageError> {
@@ -523,7 +523,7 @@ impl XInputHandle {
     ///
     /// Most commonly, a controller will simply not be connected. Most people don't
     /// have all four slots plugged in all the time.
-    pub(crate) fn set_state(
+    pub fn set_state(
         &self,
         user_index: u32,
         left_motor_speed: u16,
@@ -554,7 +554,7 @@ impl XInputHandle {
     /// Retrieve a gamepad input event.
     ///
     /// See the [MSDN documentation for XInputGetKeystroke](https://docs.microsoft.com/en-us/windows/desktop/api/xinput/nf-xinput-xinputgetkeystroke).
-    pub(crate) fn get_keystroke(
+    pub fn get_keystroke(
         &self,
         user_index: u32,
     ) -> Result<Option<xinput::XINPUT_KEYSTROKE>, XInputOptionalFnUsageError>
@@ -632,7 +632,7 @@ fn register_wake_timeout(delay: u32, waker: &Waker) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-pub(crate) struct Controller {
+pub struct Controller {
     xinput: Rc<XInputHandle>,
     device_id: u8,
     pending_events: Vec<Event>,
@@ -791,7 +791,7 @@ impl super::Controller for Controller {
     }
 }
 
-pub(crate) struct Listener {
+pub struct Listener {
     xinput: Rc<XInputHandle>,
     connected: u64,
     to_check: u8,

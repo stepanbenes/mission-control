@@ -307,16 +307,16 @@ fn linux_evdev_to_stick_event(pending: &mut Vec<Event>, e: EvdevEv) {
     }
 }
 
-#[repr(C)]
-struct InotifyEv {
-    // struct inotify_event, from C.
-    wd: c_int, /* Watch descriptor */
-    mask: u32, /* Mask describing event */
-    cookie: u32, /* Unique cookie associating related
-               events (for rename(2)) */
-    len: u32,        /* Size of name field */
-    name: [u8; 256], /* Optional null-terminated name */
-}
+// #[repr(C)]
+// struct InotifyEv {
+//     // struct inotify_event, from C.
+//     wd: c_int, /* Watch descriptor */
+//     mask: u32, /* Mask describing event */
+//     cookie: u32, /* Unique cookie associating related
+//                events (for rename(2)) */
+//     len: u32,        /* Size of name field */
+//     name: [u8; 256], /* Optional null-terminated name */
+// }
 
 #[repr(C)]
 struct TimeVal {
@@ -352,7 +352,7 @@ struct AbsInfo {
 }
 
 extern "C" {
-    fn strlen(s: *const u8) -> usize;
+    //fn strlen(s: *const u8) -> usize;
 
     fn open(pathname: *const u8, flags: c_int) -> c_int;
     fn read(fd: RawFd, buf: *mut c_void, count: usize) -> isize;
