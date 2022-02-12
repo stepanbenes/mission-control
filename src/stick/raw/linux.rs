@@ -541,7 +541,7 @@ fn joystick_haptic(fd: RawFd, id: i16, strong: f32, weak: f32) -> i16 {
             interval: 0,
         },
         replay: FfReplay {
-            length: 0,
+            length: 500, // [ms]
             delay: 0,
         },
         u: FfUnion {

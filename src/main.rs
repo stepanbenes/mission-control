@@ -116,10 +116,12 @@ async fn main_loop(mut rx: mpsc::Receiver<String>) -> Result<(), Box<dyn std::er
                             recently_disconnected_controllers.insert(filename, Instant::now());
                         }
                     }
-                    Event::ActionA(_pressed) => {
+                    Event::ActionA(pressed) => {
                         println!("{:?}", event);
-                        let c = &mut controllers[controller_index];
-                        c.rumble(1.0f32);
+                        if pressed {
+                            let c = &mut controllers[controller_index];
+                            c.rumble(0.5f32);
+                        }
                     }
                     Event::ActionB(pressed) => {
                         io.send(format!("{}", pressed)).await.expect("Failed to send text");
@@ -133,11 +135,19 @@ async fn main_loop(mut rx: mpsc::Receiver<String>) -> Result<(), Box<dyn std::er
                             }
                         }
                     }
-                    Event::BumperL(_pressed) => {
+                    Event::BumperL(pressed) => {
                         println!("{:?}", event);
+                        if pressed {
+                            let c = &mut controllers[controller_index];
+                            c.rumble((1f32, 0f32));
+                        }
                     }
-                    Event::BumperR(_pressed) => {
+                    Event::BumperR(pressed) => {
                         println!("{:?}", event);
+                        if pressed {
+                            let c = &mut controllers[controller_index];
+                            c.rumble((0f32, 1f32));
+                        }
                     }
                     _ => {}
                 }
