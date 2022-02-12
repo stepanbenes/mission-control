@@ -106,7 +106,7 @@ async fn main_loop(mut rx: mpsc::Receiver<String>) -> Result<(), Box<dyn std::er
                 }
             },
             
-            Some((event, controller_index)) = next_event(&mut controllers) => {
+            Some((event, controller)) = next_event(&mut controllers) => {
                 println!("{:?}", event);
                 match event {
                     Event::Disconnect(id) => {
@@ -119,8 +119,7 @@ async fn main_loop(mut rx: mpsc::Receiver<String>) -> Result<(), Box<dyn std::er
                     Event::ActionA(pressed) => {
                         println!("{:?}", event);
                         if pressed {
-                            let c = &mut controllers[controller_index];
-                            c.rumble(0.5f32);
+                            controller.rumble(0.5f32);
                         }
                     }
                     Event::ActionB(pressed) => {
@@ -129,8 +128,7 @@ async fn main_loop(mut rx: mpsc::Receiver<String>) -> Result<(), Box<dyn std::er
                     }
                     Event::MenuL(pressed) => {
                         if pressed {
-                            let ctrl = &controllers[controller_index];
-                            if let Some(power_info) = power::check_controller_power(ctrl.filename())? {
+                            if let Some(power_info) = power::check_controller_power(controller.filename())? {
                                 println!("Power info: {}", power_info);
                             }
                         }
@@ -138,15 +136,13 @@ async fn main_loop(mut rx: mpsc::Receiver<String>) -> Result<(), Box<dyn std::er
                     Event::BumperL(pressed) => {
                         println!("{:?}", event);
                         if pressed {
-                            let c = &mut controllers[controller_index];
-                            c.rumble((1f32, 0f32));
+                            controller.rumble((1f32, 0f32));
                         }
                     }
                     Event::BumperR(pressed) => {
                         println!("{:?}", event);
                         if pressed {
-                            let c = &mut controllers[controller_index];
-                            c.rumble((0f32, 1f32));
+                            controller.rumble((0f32, 1f32));
                         }
                     }
                     _ => {}
@@ -177,14 +173,17 @@ async fn write_to_serial(io: &mut Framed<SerialStream, LinesCodec>, text: &str) 
     Ok(io.send(text).await?)
 }
 
-async fn next_event(controllers: &mut Vec<Controller>) -> Option<(Event, usize)> {
+async fn next_event(controllers: &mut Vec<Controller>) -> Option<(Event, &mut Controller)> {
     if controllers.is_empty() {
         return None;
     }
-    let mut controller_futures = controllers
+    let (event, controller_index) = {
+        let mut controller_futures = controllers
             .iter_mut()
             .enumerate()
             .map(|(i, controller)| controller.map(move |event| (event, i)))
             .collect::<FuturesUnordered<_>>();
-    Some(controller_futures.select_next_some().await)
+        controller_futures.select_next_some().await
+    };
+    Some((event, &mut controllers[controller_index]))
 }
