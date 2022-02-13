@@ -56,7 +56,7 @@ async fn main_loop(mut rx: mpsc::Receiver<String>) -> Result<(), Box<dyn std::er
     let mut io = open_serial_port("/dev/ttyUSB0")?;
 
     let mut controllers: Vec<_> = Vec::<Controller>::new();
-    let mut recently_disconnected_controllers = HashMap::<String, Instant>::new();
+    let mut disconnected_controllers_times = HashMap::<String, Instant>::new();
     
     let controller_provider = ControllerProvider::new(vec!["Wireless Controller"]);
 
@@ -80,27 +80,9 @@ async fn main_loop(mut rx: mpsc::Receiver<String>) -> Result<(), Box<dyn std::er
             },
 
             Some(controller_path) = rx.recv() => {
-                //println!("Received message '{}'", controller_path);
-                if !controllers.iter().any(|c| c.filename() == controller_path) {
-                    let was_recently_disconnected = 
-                        if let Some(time_disconnected) = recently_disconnected_controllers.get(&controller_path) {
-                            if Instant::now() - *time_disconnected < Duration::from_millis(1000) {
-                                true
-                            }
-                            else {
-                                recently_disconnected_controllers.remove(&controller_path);
-                                false
-                            }
-                        }
-                        else {
-                            false
-                        };
-                    if !was_recently_disconnected {
-                        if let Some(controller) = controller_provider.create_controller(controller_path) {
-                            println!("Received new controller '{}', ('{}')", controller.name(), controller.filename());
-                            controllers.push(controller);
-                        }
-                    }
+                if let Some(controller) = try_create_new_controller(controller_path, &controllers, &mut disconnected_controllers_times, &controller_provider) {
+                    println!("Received new controller '{}', ('{}')", controller.name(), controller.filename());
+                    controllers.push(controller);
                 }
             },
             
@@ -111,7 +93,7 @@ async fn main_loop(mut rx: mpsc::Receiver<String>) -> Result<(), Box<dyn std::er
                         println!("Controller {:?} disconnected", id);
                         if let Some(filename) = id {
                             controllers.retain(|c| c.filename() != filename);
-                            recently_disconnected_controllers.insert(filename, Instant::now());
+                            disconnected_controllers_times.insert(filename, Instant::now());
                         }
                     }
                     Event::ActionA(pressed) => {
@@ -184,4 +166,26 @@ async fn next_event(controllers: &mut Vec<Controller>) -> Option<(Event, &mut Co
         controller_futures.select_next_some().await
     };
     Some((event, &mut controllers[controller_index]))
+}
+
+fn try_create_new_controller(controller_path: String, controllers: &Vec<Controller>, disconnected_controllers_times: &mut HashMap<String, Instant>, controller_provider: &ControllerProvider) -> Option<Controller> {
+    if !controllers.iter().any(|c| c.filename() == controller_path) {
+        let was_recently_disconnected = 
+            if let Some(time_disconnected) = disconnected_controllers_times.get(&controller_path) {
+                if Instant::now() - *time_disconnected < Duration::from_millis(1000) {
+                    true
+                }
+                else {
+                    disconnected_controllers_times.remove(&controller_path);
+                    false
+                }
+            }
+            else {
+                false
+            };
+        if !was_recently_disconnected {
+            return controller_provider.create_controller(controller_path);
+        }
+    }
+    None
 }
