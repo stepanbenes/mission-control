@@ -163,7 +163,7 @@ async fn next_event(controllers: &mut Vec<Controller>) -> Option<(Event, &mut Co
     Some((event, &mut controllers[controller_index]))
 }
 
-fn try_create_new_controller(controller_path: String, controller_provider: &ControllerProvider, controllers: &Vec<Controller>, disconnected_controllers_times: &mut HashMap<String, Instant>) -> Option<Controller> {
+fn try_create_new_controller(controller_path: String, controller_provider: &ControllerProvider, controllers: &[Controller], disconnected_controllers_times: &mut HashMap<String, Instant>) -> Option<Controller> {
     if !controllers.iter().any(|c| c.filename() == controller_path) {
         let was_recently_disconnected = 
             if let Some(time_disconnected) = disconnected_controllers_times.get(&controller_path) {

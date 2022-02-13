@@ -435,7 +435,7 @@ impl Controller {
         // Do remapping step first.
         let ev = event.clone().to_id().0;
         let event = if let Some(new_id) = self.remap.maps.get(&ev) {
-            let event = event.clone().remap(new_id.out);
+            let event = event.remap(new_id.out);
             if matches!(event, Disconnect(_)) {
                 return Poll::Pending;
             }

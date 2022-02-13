@@ -346,6 +346,7 @@ impl Event {
     }
 
     #[inline(always)]
+    #[allow(clippy::wrong_self_convention)]
     pub fn to_id(self) -> (u8, f64) {
         use Event::*;
         match self {

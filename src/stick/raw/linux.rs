@@ -554,7 +554,8 @@ fn joystick_haptic(fd: RawFd, id: i16, strong: f32, weak: f32) -> i16 {
 
     // stick crate did not work, fix inspired in girls crate: https://gitlab.com/gilrs-project/gilrs/-/blob/master/gilrs-core/src/platform/linux/ff.rs#L36
 
-    if let Ok(_) = unsafe { eviocsff(fd, &mut a) } {
+    #[allow(clippy::unnecessary_mut_passed)]
+    if unsafe { eviocsff(fd, &mut a) }.is_ok() {
         a.id
     } else {
         -1
@@ -808,7 +809,7 @@ impl super::Listener for Listener {
     fn poll(&mut self, cx: &mut Context<'_>) -> Poll<String> {
         // Read the directory for ctrls if initialization hasn't completed yet.
         if let Some(ref mut read_dir_f) = &mut self.read_dir {
-            for dir_entry in read_dir_f.flatten() {
+            if let Some(dir_entry) = read_dir_f.flatten().next() {
                 let file = dir_entry.path();
                 let path = file.as_path().to_string_lossy().to_string();
                 return Poll::Ready(path);
