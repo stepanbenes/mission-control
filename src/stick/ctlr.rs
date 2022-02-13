@@ -621,14 +621,25 @@ impl Rumble for (f32, f32) {
     }
 }
 
-pub struct ControllerProvider(Box<dyn crate::stick::raw::ControllerProvider>);
+pub struct ControllerProvider {
+    allowed_names: Vec<&'static str>,
+    inner: Box<dyn crate::stick::raw::ControllerProvider>,
+}
 
 impl ControllerProvider {
-    pub fn new() -> Self {
-        Self(crate::stick::raw::GLOBAL.with(|g| g.controller_provider()))
+    pub fn new(allowed_names: Vec<&'static str>) -> Self {
+        Self {
+            inner: crate::stick::raw::GLOBAL.with(|g| g.controller_provider()),
+            allowed_names,
+        }
     }
 
-    pub fn create_controller(&self, path: String) -> Option<Controller> {
-        self.0.as_ref().create_controller(path)
+    pub fn create_controller(&self, path: String) -> Option<Controller> { 
+        if let Some(controller) = self.inner.as_ref().create_controller(path) {
+            if self.allowed_names.is_empty() || self.allowed_names.contains(&controller.name()) {
+                return Some(controller);
+            }
+        }
+        None
     }
 }

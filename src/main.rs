@@ -58,7 +58,7 @@ async fn main_loop(mut rx: mpsc::Receiver<String>) -> Result<(), Box<dyn std::er
     let mut controllers: Vec<_> = Vec::<Controller>::new();
     let mut recently_disconnected_controllers = HashMap::<String, Instant>::new();
     
-    let controller_provider = ControllerProvider::new();
+    let controller_provider = ControllerProvider::new(vec!["Wireless Controller"]);
 
     let mut sigterm_stream = signal(SignalKind::terminate())?;
 
@@ -97,10 +97,8 @@ async fn main_loop(mut rx: mpsc::Receiver<String>) -> Result<(), Box<dyn std::er
                         };
                     if !was_recently_disconnected {
                         if let Some(controller) = controller_provider.create_controller(controller_path) {
-                            if controller.name() == "Wireless Controller" { // TODO: remove this for recieving motion and touchpad
-                                println!("Received new controller '{}', ('{}')", controller.name(), controller.filename());
-                                controllers.push(controller);
-                            }
+                            println!("Received new controller '{}', ('{}')", controller.name(), controller.filename());
+                            controllers.push(controller);
                         }
                     }
                 }
