@@ -3,15 +3,10 @@ mod stick;
 #[macro_use]
 extern crate lazy_static;
 
-use std::time::{Instant, Duration};
-use std::collections::HashMap;
-use futures::stream::FuturesUnordered;
-use futures::FutureExt;
-use futures::SinkExt;
-use tokio::signal::{ctrl_c, unix::{signal, SignalKind}};
-use futures::stream::StreamExt;
+use std::{time::{Instant, Duration}, collections::HashMap};
+use futures::{stream::{FuturesUnordered, StreamExt}, FutureExt, SinkExt};
+use tokio::{sync::mpsc, signal::{ctrl_c, unix::{signal, SignalKind}}};
 use tokio_util::codec::{Framed, LinesCodec};
-
 use tokio_serial::{SerialPortBuilderExt, SerialStream};
 
 use stick::{Controller, Event, Listener, ControllerProvider, check_controller_power};
@@ -29,9 +24,22 @@ lazy_static! {
 
 // ==================================================
 
-use tokio::sync::mpsc;
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // channel for communication from controller discovery loop to main program loop
+    let (controller_sender, controller_receiver) = mpsc::channel::<String>(32);
+    
+    // controller discovery loop on own thread
+    let _handle = std::thread::spawn(move || {
+        let runtime2 = tokio::runtime::Runtime::new().expect("Runtime for controller discovery loop could not be created");
+        runtime2.block_on(controller_discovery_loop(controller_sender))
+    });
+    
+    // main program loop
+    let runtime1 = tokio::runtime::Runtime::new()?;
+    runtime1.block_on(main_program_loop(controller_receiver))
+}
 
-async fn gamepad_discovery_loop(tx: mpsc::Sender<String>) {
+async fn controller_discovery_loop(tx: mpsc::Sender<String>) {
     let mut listener = Listener::new();
     loop {
         let controller_path = (&mut listener).await;
@@ -39,19 +47,7 @@ async fn gamepad_discovery_loop(tx: mpsc::Sender<String>) {
     }
 }
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let (tx, rx) = mpsc::channel::<String>(32);
-    
-    let _handle = std::thread::spawn(move || {
-        let runtime2 = tokio::runtime::Runtime::new().expect("Runtime for gamepad discovery loop could not be created");
-        runtime2.block_on(gamepad_discovery_loop(tx))
-    });
-
-    let runtime1 = tokio::runtime::Runtime::new()?;
-    runtime1.block_on(main_loop(rx))
-}
-
-async fn main_loop(mut rx: mpsc::Receiver<String>) -> Result<(), Box<dyn std::error::Error>> {
+async fn main_program_loop(mut controller_listener: mpsc::Receiver<String>) -> Result<(), Box<dyn std::error::Error>> {
     let mut io = open_serial_port("/dev/ttyUSB0")?;
 
     let mut controllers: Vec<_> = Vec::<Controller>::new();
@@ -78,8 +74,8 @@ async fn main_loop(mut rx: mpsc::Receiver<String>) -> Result<(), Box<dyn std::er
                 break;
             },
 
-            Some(controller_path) = rx.recv() => {
-                if let Some(controller) = try_create_new_controller(controller_path, &controllers, &mut disconnected_controllers_times, &controller_provider) {
+            Some(controller_path) = controller_listener.recv() => {
+                if let Some(controller) = try_create_new_controller(controller_path, &controller_provider, &controllers, &mut disconnected_controllers_times) {
                     println!("Received new controller '{}', ('{}')", controller.name(), controller.filename());
                     controllers.push(controller);
                 }
@@ -167,7 +163,7 @@ async fn next_event(controllers: &mut Vec<Controller>) -> Option<(Event, &mut Co
     Some((event, &mut controllers[controller_index]))
 }
 
-fn try_create_new_controller(controller_path: String, controllers: &Vec<Controller>, disconnected_controllers_times: &mut HashMap<String, Instant>, controller_provider: &ControllerProvider) -> Option<Controller> {
+fn try_create_new_controller(controller_path: String, controller_provider: &ControllerProvider, controllers: &Vec<Controller>, disconnected_controllers_times: &mut HashMap<String, Instant>) -> Option<Controller> {
     if !controllers.iter().any(|c| c.filename() == controller_path) {
         let was_recently_disconnected = 
             if let Some(time_disconnected) = disconnected_controllers_times.get(&controller_path) {
