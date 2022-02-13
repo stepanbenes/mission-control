@@ -1,5 +1,4 @@
 mod stick;
-mod power;
 
 #[macro_use]
 extern crate lazy_static;
@@ -15,7 +14,7 @@ use tokio_util::codec::{Framed, LinesCodec};
 
 use tokio_serial::{SerialPortBuilderExt, SerialStream};
 
-use stick::{Controller, Event, Listener, ControllerProvider};
+use stick::{Controller, Event, Listener, ControllerProvider, check_controller_power};
 
 // ==================================================
 // REGEX definitions >>>
@@ -108,7 +107,7 @@ async fn main_loop(mut rx: mpsc::Receiver<String>) -> Result<(), Box<dyn std::er
                     }
                     Event::MenuL(pressed) => {
                         if pressed {
-                            if let Some(power_info) = power::check_controller_power(controller.filename())? {
+                            if let Some(power_info) = check_controller_power(controller.filename())? {
                                 println!("Power info: {}", power_info);
                             }
                         }
