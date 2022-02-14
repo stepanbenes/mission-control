@@ -8,6 +8,7 @@ use futures::{stream::{FuturesUnordered, StreamExt}, FutureExt, SinkExt};
 use tokio::{sync::mpsc, signal::{ctrl_c, unix::{signal, SignalKind}}};
 use tokio_util::codec::{Framed, LinesCodec};
 use tokio_serial::{SerialPortBuilderExt, SerialStream};
+use tokio_tungstenite::{connect_async};
 
 use stick::{Controller, Event, Listener, ControllerProvider, check_controller_power};
 
@@ -57,9 +58,14 @@ async fn main_program_loop(mut controller_listener: mpsc::Receiver<String>) -> R
 
     let mut sigterm_stream = signal(SignalKind::terminate())?;
 
+    let (mut ws_stream, _) = connect_async(url::Url::parse("ws://192.168.1.163/deep-space-network")?).await?; // cloudberry ethernet
+
     loop {
 
         tokio::select! {
+            Some(message) = ws_stream.next() => {
+                println!("Deep space network: {}", message?);
+            },
             serial_line = read_serial_line(&mut io) => {
                 let line = serial_line.expect("Failed to read line from serial");
                 println!("serial: {}", line);
