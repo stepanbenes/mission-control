@@ -1,14 +1,16 @@
 mod stick;
+mod deep_space_network;
+mod error;
 
 #[macro_use]
 extern crate lazy_static;
 
 use std::{time::{Instant, Duration}, collections::HashMap};
+use deep_space_network::DeepSpaceNetwork;
 use futures::{stream::{FuturesUnordered, StreamExt}, FutureExt, SinkExt};
 use tokio::{sync::mpsc, signal::{ctrl_c, unix::{signal, SignalKind}}};
 use tokio_util::codec::{Framed, LinesCodec};
 use tokio_serial::{SerialPortBuilderExt, SerialStream};
-use tokio_tungstenite::{connect_async, tungstenite::protocol::Message};
 
 use stick::{Controller, Event, Listener, ControllerProvider, check_controller_power};
 
@@ -58,13 +60,15 @@ async fn main_program_loop(mut controller_listener: mpsc::Receiver<String>) -> R
 
     let mut sigterm_stream = signal(SignalKind::terminate())?;
 
-    let (mut ws_stream, _) = connect_async(url::Url::parse("ws://192.168.1.163/deep-space-network")?).await?; // cloudberry ethernet
+    let mut network = DeepSpaceNetwork::connect(url::Url::parse("ws://192.168.1.163/deep-space-network")?).await?; // cloudberry ethernet
 
     loop {
 
         tokio::select! {
-            Some(message) = ws_stream.next() => {
-                println!("Deep space network: {}", message?);
+            Some(message) = network.listen() => {
+                println!("Deep space network: {:?}", message?);
+                //network.send(Message::Text(format!("huhu"))).await?;
+                //write_to_serial(&mut io, "huhu").await.expect("Failed to write line to serial");
             },
             serial_line = read_serial_line(&mut io) => {
                 let line = serial_line.expect("Failed to read line from serial");
@@ -72,8 +76,6 @@ async fn main_program_loop(mut controller_listener: mpsc::Receiver<String>) -> R
             },
             _ = ctrl_c() => {
                 println!("Received ctrl+c. Shutting down.");
-                //ws_stream.send(Message::Text(format!("huhu"))).await?;
-                //write_to_serial(&mut io, "huhu").await.expect("Failed to write line to serial");
                 break;
             },
             _ = sigterm_stream.recv() => {
