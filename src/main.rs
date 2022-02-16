@@ -8,7 +8,7 @@ use futures::{stream::{FuturesUnordered, StreamExt}, FutureExt, SinkExt};
 use tokio::{sync::mpsc, signal::{ctrl_c, unix::{signal, SignalKind}}};
 use tokio_util::codec::{Framed, LinesCodec};
 use tokio_serial::{SerialPortBuilderExt, SerialStream};
-use tokio_tungstenite::{connect_async};
+use tokio_tungstenite::{connect_async, tungstenite::protocol::Message};
 
 use stick::{Controller, Event, Listener, ControllerProvider, check_controller_power};
 
@@ -72,6 +72,7 @@ async fn main_program_loop(mut controller_listener: mpsc::Receiver<String>) -> R
             },
             _ = ctrl_c() => {
                 println!("Received ctrl+c. Shutting down.");
+                //ws_stream.send(Message::Text(format!("huhu"))).await?;
                 //write_to_serial(&mut io, "huhu").await.expect("Failed to write line to serial");
                 break;
             },
