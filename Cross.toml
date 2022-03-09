@@ -1,3 +1,2 @@
 [target.armv7-unknown-linux-gnueabihf]
 image = "rex-image:latest"
-linker = "arm-linux-gnueabihf-gcc"
