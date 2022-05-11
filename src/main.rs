@@ -6,11 +6,8 @@ mod error;
 extern crate lazy_static;
 
 use std::{time::{Instant, Duration}, collections::HashMap};
-use deep_space_network::DeepSpaceNetwork;
-use futures::{stream::{FuturesUnordered, StreamExt}, FutureExt, SinkExt};
+use futures::{stream::{FuturesUnordered, StreamExt}, FutureExt};
 use tokio::{sync::mpsc, signal::{ctrl_c, unix::{signal, SignalKind}}};
-use tokio_util::codec::{Framed, LinesCodec};
-use tokio_serial::{SerialPortBuilderExt, SerialStream};
 
 use stick::{Controller, Event, Listener, ControllerProvider, check_controller_power};
 
@@ -51,8 +48,6 @@ async fn controller_discovery_loop(tx: mpsc::Sender<String>) {
 }
 
 async fn main_program_loop(mut controller_listener: mpsc::Receiver<String>) -> Result<(), Box<dyn std::error::Error>> {
-    let mut io = open_serial_port("/dev/ttyUSB0")?;
-
     let mut controllers: Vec<_> = Vec::<Controller>::new();
     let mut disconnected_controllers_times = HashMap::<String, Instant>::new();
     
@@ -60,20 +55,9 @@ async fn main_program_loop(mut controller_listener: mpsc::Receiver<String>) -> R
 
     let mut sigterm_stream = signal(SignalKind::terminate())?;
 
-    let mut network = DeepSpaceNetwork::connect(url::Url::parse("ws://192.168.1.163/deep-space-network")?).await?; // cloudberry ethernet
-
     loop {
 
         tokio::select! {
-            Some(message) = network.listen() => {
-                println!("Deep space network: {:?}", message?);
-                //network.send(Message::Text(format!("huhu"))).await?;
-                //write_to_serial(&mut io, "huhu").await.expect("Failed to write line to serial");
-            },
-            serial_line = read_serial_line(&mut io) => {
-                let line = serial_line.expect("Failed to read line from serial");
-                println!("serial: {}", line);
-            },
             _ = ctrl_c() => {
                 println!("Received ctrl+c. Shutting down.");
                 break;
@@ -106,9 +90,8 @@ async fn main_program_loop(mut controller_listener: mpsc::Receiver<String>) -> R
                             controller.rumble(0.5f32);
                         }
                     }
-                    Event::ActionB(pressed) => {
-                        io.send(format!("{}", pressed)).await.expect("Failed to send text");
-                        //controller.ruaddaassww432141s4a2w3d1s4able(f32::from(u8::from(pressed)));
+                    Event::ActionB(_pressed) => {
+
                     }
                     Event::MenuL(pressed) => {
                         if pressed {
@@ -138,23 +121,6 @@ async fn main_program_loop(mut controller_listener: mpsc::Receiver<String>) -> R
     }
 
     Ok(())
-}
-
-fn open_serial_port(tty_path: &str) -> Result<Framed<tokio_serial::SerialStream, tokio_util::codec::LinesCodec>, Box<dyn std::error::Error>> {
-    let mut port = tokio_serial::new(tty_path, 9600).open_native_async()?;
-    #[cfg(unix)]
-    port.set_exclusive(false).expect("Unable to set serial port exclusive to false");
-    Ok(Framed::new(port, LinesCodec::new()))
-}
-
-async fn read_serial_line(io: &mut Framed<SerialStream, LinesCodec>,
-) -> Result<String, Box<dyn std::error::Error>> {
-    Ok(io.next().await.unwrap()?)
-}
-
-#[allow(dead_code)]
-async fn write_to_serial(io: &mut Framed<SerialStream, LinesCodec>, text: &str) -> Result<(), Box<dyn std::error::Error>> {
-    Ok(io.send(text).await?)
 }
 
 async fn next_event(controllers: &mut Vec<Controller>) -> Option<(Event, &mut Controller)> {
