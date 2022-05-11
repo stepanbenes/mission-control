@@ -112,16 +112,26 @@ async fn main_program_loop(mut controller_listener: mpsc::Receiver<String>) -> R
                         }
                     }
                     Event::BumperL(pressed) => {
-                        println!("{:?}", event);
                         if pressed {
                             controller.rumble((1f32, 0f32));
                         }
                     }
                     Event::BumperR(pressed) => {
-                        println!("{:?}", event);
                         if pressed {
                             controller.rumble((0f32, 1f32));
                         }
+                    }
+                    Event::JoyY(value) => {
+                        drive.right_motor(Some(-value))?; // opposite motor
+                    }
+                    Event::TriggerL(value) => {
+                        drive.left_motor(Some(value))?;
+                    }
+                    Event::CamY(value) => {
+                        drive.left_motor(Some(-value))?; // opposite motor
+                    }
+                    Event::TriggerR(value) => {
+                        drive.right_motor(Some(value))?;
                     }
                     _ => {}
                 }

@@ -26,8 +26,8 @@ impl Drive {
 		backward2_pin.set_low();
 
 		// Enable PWM channel 0 (BCM GPIO 18, physical pin 12) at 2 Hz with a 25% duty cycle.
-		let pwm0 = Pwm::with_frequency(Channel::Pwm0, 25.0, 0.5, Polarity::Normal, false)?;
-		let pwm1 = Pwm::with_frequency(Channel::Pwm1, 25.0, 0.5, Polarity::Normal, false)?;
+		let pwm0 = Pwm::with_frequency(Channel::Pwm0, 75.0, 0.5, Polarity::Normal, false)?;
+		let pwm1 = Pwm::with_frequency(Channel::Pwm1, 75.0, 0.5, Polarity::Normal, false)?;
 
 		Ok(Self {
 			forward1_pin,
@@ -40,22 +40,86 @@ impl Drive {
 	}
 
 	pub fn go_forward(&mut self) -> Result<(), PropulsionError> {
-		self.forward1_pin.set_high();
-		self.backward1_pin.set_low();
-		self.forward2_pin.set_high();
-		self.backward2_pin.set_low();
-		self.pwm0.enable()?;
-    	self.pwm1.enable()?;
+		self.left_motor(Some(1.0))?;
+		self.right_motor(Some(1.0))?;
+		Ok(())
+	}
+
+	#[allow(dead_code)]
+	pub fn go_backward(&mut self) -> Result<(), PropulsionError> {
+		self.left_motor(Some(-1.0))?;
+		self.right_motor(Some(-1.0))?;
 		Ok(())
 	}
 
 	pub fn stop(&mut self) -> Result<(), PropulsionError> {
-		self.forward1_pin.set_low();
-		self.backward1_pin.set_low();
-		self.forward2_pin.set_low();
-		self.backward2_pin.set_low();
-		self.pwm0.disable()?;
-    	self.pwm1.disable()?;
+		self.left_motor(None)?;
+		self.right_motor(None)?;
 		Ok(())
+	}
+
+	pub fn left_motor(&mut self, velocity: Option<f64>) -> Result<(), PropulsionError> {
+		if let Some(velocity) = velocity {
+			if velocity == 0.0 {
+				self.forward1_pin.set_low();
+				self.backward1_pin.set_low();
+				self.pwm0.set_duty_cycle(0.0)?;
+			}
+			else if velocity >= -1.0 && velocity < 0.0 {
+				// set backward
+				self.forward1_pin.set_low();
+				self.backward1_pin.set_high();
+				self.pwm0.set_duty_cycle(Drive::map_from_range_to_range(velocity.abs(), 0.0..=1.0, 0.0..=1.0))?;
+			}
+			else if velocity > 0.0 && velocity <= 1.0 {
+				// set forward
+				self.forward1_pin.set_high();
+				self.backward1_pin.set_low();
+				self.pwm0.set_duty_cycle(Drive::map_from_range_to_range(velocity, 0.0..=1.0, 0.0..=1.0))?;
+			}
+			else {
+				return Err(format!("`velocity` is outside of allowed range -1..1 (was {}).", velocity).into());
+			}
+			Ok(self.pwm0.enable()?)
+		}
+		else {
+			Ok(self.pwm0.disable()?)
+		}
+	}
+
+	pub fn right_motor(&mut self, velocity: Option<f64>) -> Result<(), PropulsionError> {
+		if let Some(velocity) = velocity {
+			if velocity == 0.0 {
+				self.forward2_pin.set_low();
+				self.backward2_pin.set_low();
+				self.pwm1.set_duty_cycle(0.0)?;
+			}
+			else if velocity >= -1.0 && velocity < 0.0 {
+				// set backward
+				self.forward2_pin.set_low();
+				self.backward2_pin.set_high();
+				self.pwm1.set_duty_cycle(Drive::map_from_range_to_range(velocity.abs(), 0.0..=1.0, 0.5..=1.0))?;
+			}
+			else if velocity > 0.0 && velocity <= 1.0 {
+				// set forward
+				self.forward2_pin.set_high();
+				self.backward2_pin.set_low();
+				self.pwm1.set_duty_cycle(Drive::map_from_range_to_range(velocity, 0.0..=1.0, 0.5..=1.0))?;
+			}
+			else {
+				return Err(format!("`velocity` is outside of allowed range -1..1 (was {}).", velocity).into());
+			}
+			Ok(self.pwm1.enable()?)
+		}
+		else {
+			Ok(self.pwm1.disable()?)
+		}
+	}
+
+	fn map_from_range_to_range(value: f64, from_range: std::ops::RangeInclusive<f64>, to_range: std::ops::RangeInclusive<f64>) -> f64 {
+		let from_length = from_range.end() - from_range.start();
+		let to_length = to_range.end() - to_range.start();
+		let value_normalized = (value - from_range.start()) / from_length;
+		to_range.start() + value_normalized * to_length
 	}
 }

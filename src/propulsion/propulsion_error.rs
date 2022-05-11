@@ -13,6 +13,18 @@ impl From<rppal::gpio::Error> for PropulsionError {
     }
 }
 
+impl From<&str> for PropulsionError {
+    fn from(error_message: &str) -> Self {
+        Self(error_message.to_string())
+    }
+}
+
+impl From<String> for PropulsionError {
+    fn from(error_message: String) -> Self {
+        Self(error_message)
+    }
+}
+
 impl std::error::Error for PropulsionError {
     fn description(&self) -> &str {
         &self.0
