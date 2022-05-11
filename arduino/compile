@@ -1,2 +1,0 @@
-#!/bin/bash
-arduino-cli compile --fqbn arduino:avr:mega balancing_robot --verbose
