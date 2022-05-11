@@ -1,0 +1,95 @@
+// Stick
+// Copyright © 2017-2021 Jeron Aldaron Lau.
+//
+// Licensed under any of:
+// - Apache License, Version 2.0 (https://www.apache.org/licenses/LICENSE-2.0)
+// - MIT License (https://mit-license.org/)
+// - Boost Software License, Version 1.0 (https://www.boost.org/LICENSE_1_0.txt)
+// At your choosing (See accompanying files LICENSE_APACHE_2_0.txt,
+// LICENSE_MIT.txt and LICENSE_BOOST_1_0.txt).
+
+#![allow(unsafe_code)]
+
+use crate::stick::Event;
+use std::task::{Context, Poll};
+
+#[cfg_attr(target_os = "linux", path = "raw/linux.rs")]
+mod ffi;
+
+/// Global state for when the system implementation can fail.
+struct FakeGlobal;
+
+impl Global for FakeGlobal {}
+
+/// A Listener that never returns any controllers for unsupported platforms.
+struct FakeListener;
+
+impl Listener for FakeListener {
+    fn poll(&mut self, _cx: &mut Context<'_>) -> Poll<String> {
+        Poll::Pending
+    }
+}
+
+struct FakeControllerProvider;
+
+impl ControllerProvider for FakeControllerProvider {
+    fn create_controller(&self, _path: String) -> Option<crate::Controller> {
+        None
+    }
+}
+
+/// Controller Listener Implementation
+pub trait Listener {
+    /// Poll for controllers.
+    fn poll(&mut self, cx: &mut Context<'_>) -> Poll<String>;
+}
+
+pub trait ControllerProvider {
+    fn create_controller(&self, path: String) -> Option<crate::Controller>;
+}
+
+/// Controller Implementation
+pub trait Controller {
+    /// The hardware identifier for this controller.
+    fn id(&self) -> u64 {
+        0
+    }
+    /// Poll for events.
+    fn poll(&mut self, _cx: &mut Context<'_>) -> Poll<Event> {
+        Poll::Pending
+    }
+    /// Stereo rumble effect (left is low frequency, right is high frequency).
+    fn rumble(&mut self, _left: f32, _right: f32) {}
+    /// Get the name of this controller.
+    fn name(&self) -> &str {
+        "Unknown"
+    }
+    /// Floating Point Translation for pressure axis/buttons.
+    fn pressure(&self, input: f64) -> f64 {
+        input
+    }
+    /// Floating Point Translation for full axis values.
+    fn axis(&self, input: f64) -> f64 {
+        input
+    }
+}
+
+/// Thread local global state implementation.
+pub trait Global: std::any::Any {
+    /// Enable all events (when window comes in focus).
+    fn enable(&self) {}
+    /// Disable all events (when window leaves focus).
+    fn disable(&self) {}
+    /// Create a new listener.
+    fn listener(&self) -> Box<dyn Listener> {
+        Box::new(FakeListener)
+    }
+    /// Create a new controller provider.
+    fn controller_provider(&self) -> Box<dyn ControllerProvider> {
+        Box::new(FakeControllerProvider)
+    }
+}
+
+thread_local! {
+    pub static GLOBAL: Box<dyn Global> = ffi::global();
+}
