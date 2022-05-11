@@ -1,6 +1,7 @@
 mod stick;
 mod deep_space_network;
 mod error;
+mod propulsion;
 
 #[macro_use]
 extern crate lazy_static;
@@ -25,6 +26,8 @@ lazy_static! {
 // ==================================================
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    println!("Hello!");
+
     // channel for communication from controller discovery loop to main program loop
     let (controller_sender, controller_receiver) = mpsc::channel::<String>(32);
     
@@ -50,10 +53,11 @@ async fn controller_discovery_loop(tx: mpsc::Sender<String>) {
 async fn main_program_loop(mut controller_listener: mpsc::Receiver<String>) -> Result<(), Box<dyn std::error::Error>> {
     let mut controllers: Vec<_> = Vec::<Controller>::new();
     let mut disconnected_controllers_times = HashMap::<String, Instant>::new();
-    
     let controller_provider = ControllerProvider::new(vec!["Wireless Controller"]);
 
     let mut sigterm_stream = signal(SignalKind::terminate())?;
+
+    let mut drive = propulsion::Drive::initialize()?;
 
     loop {
 
@@ -85,13 +89,20 @@ async fn main_program_loop(mut controller_listener: mpsc::Receiver<String>) -> R
                         }
                     }
                     Event::ActionA(pressed) => {
-                        println!("{:?}", event);
                         if pressed {
                             controller.rumble(0.5f32);
                         }
                     }
-                    Event::ActionB(_pressed) => {
-
+                    Event::ActionB(pressed) => {
+                        if pressed {
+                            drive.go_forward()?;
+                        } else {
+                            drive.stop()?;
+                        }
+                    }
+                    Event::ActionH(_pressed) => {
+                    }
+                    Event::ActionV(_pressed) => {
                     }
                     Event::MenuL(pressed) => {
                         if pressed {
