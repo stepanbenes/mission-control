@@ -79,7 +79,7 @@ async fn main_program_loop(mut controller_listener: mpsc::Receiver<String>) -> R
             },
             
             Some((event, controller)) = next_event(&mut controllers) => {
-                println!("{:?}", event);
+                //println!("{:?}", event); // do not print each event
                 match event {
                     Event::Disconnect(id) => {
                         println!("Controller {:?} disconnected", id);
