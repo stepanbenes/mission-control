@@ -178,7 +178,7 @@ async fn main_program_loop(mut controller_listener: mpsc::Receiver<String>) -> R
     Ok(())
 }
 
-async fn next_event(controllers: &mut Vec<Controller>) -> Option<(Event, &mut Controller)> {
+async fn next_event(controllers: &mut [Controller]) -> Option<(Event, &mut Controller)> {
     if controllers.is_empty() {
         return None;
     }

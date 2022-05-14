@@ -66,13 +66,13 @@ impl Drive {
 				self.backward1_pin.set_low();
 				self.pwm0.set_duty_cycle(0.0)?;
 			}
-			else if velocity >= -1.0 && velocity < 0.0 {
+			else if (-1.0..0.0).contains(&velocity) {
 				// set backward
 				self.forward1_pin.set_low();
 				self.backward1_pin.set_high();
 				self.pwm0.set_duty_cycle(Drive::map_from_range_to_range(velocity.abs(), 0.0..=1.0, 0.0..=1.0))?;
 			}
-			else if velocity > 0.0 && velocity <= 1.0 {
+			else if (0.0..=1.0).contains(&velocity) {
 				// set forward
 				self.forward1_pin.set_high();
 				self.backward1_pin.set_low();
@@ -95,13 +95,13 @@ impl Drive {
 				self.backward2_pin.set_low();
 				self.pwm1.set_duty_cycle(0.0)?;
 			}
-			else if velocity >= -1.0 && velocity < 0.0 {
+			else if (-1.0..0.0).contains(&velocity) {
 				// set backward
 				self.forward2_pin.set_low();
 				self.backward2_pin.set_high();
 				self.pwm1.set_duty_cycle(Drive::map_from_range_to_range(velocity.abs(), 0.0..=1.0, 0.5..=1.0))?;
 			}
-			else if velocity > 0.0 && velocity <= 1.0 {
+			else if (0.0..=1.0).contains(&velocity) {
 				// set forward
 				self.forward2_pin.set_high();
 				self.backward2_pin.set_low();
