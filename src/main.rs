@@ -2,6 +2,7 @@ mod stick;
 mod deep_space_network;
 mod error;
 mod propulsion;
+mod event_combinator;
 
 #[macro_use]
 extern crate lazy_static;
@@ -59,6 +60,8 @@ async fn main_program_loop(mut controller_listener: mpsc::Receiver<String>) -> R
 
     let mut drive = propulsion::Drive::initialize()?;
 
+    let mut event_combinator = event_combinator::EventCombinator::new();
+
     loop {
 
         tokio::select! {
@@ -80,61 +83,75 @@ async fn main_program_loop(mut controller_listener: mpsc::Receiver<String>) -> R
             
             Some((event, controller)) = next_event(&mut controllers) => {
                 //println!("{:?}", event); // do not print each event
-                match event {
-                    Event::Disconnect(id) => {
-                        println!("Controller {:?} disconnected", id);
-                        if let Some(filename) = id {
-                            controllers.retain(|c| c.filename() != filename);
-                            disconnected_controllers_times.insert(filename, Instant::now());
+
+                // special controller event (combo)
+                if let Some(special_event) = event_combinator.add(&event) {
+                    match special_event {
+                        event_combinator::SpecialEvent::Shutdown => {
+                            println!("Shutting down...");
+                            system_shutdown::shutdown()?;
                         }
                     }
-                    Event::ActionA(pressed) => {
-                        if pressed {
-                            controller.rumble(0.5f32);
-                        }
-                    }
-                    Event::ActionB(pressed) => {
-                        if pressed {
-                            drive.go_forward()?;
-                        } else {
-                            drive.stop()?;
-                        }
-                    }
-                    Event::ActionH(_pressed) => {
-                    }
-                    Event::ActionV(_pressed) => {
-                    }
-                    Event::MenuL(pressed) => {
-                        if pressed {
-                            if let Some(power_info) = check_controller_power(controller.filename())? {
-                                println!("Power info: {}", power_info);
+                }
+                // regular component event
+                else {
+                    match event {
+                        Event::Disconnect(id) => {
+                            println!("Controller {:?} disconnected", id);
+                            if let Some(filename) = id {
+                                controllers.retain(|c| c.filename() != filename);
+                                disconnected_controllers_times.insert(filename, Instant::now());
                             }
                         }
-                    }
-                    Event::BumperL(pressed) => {
-                        if pressed {
-                            controller.rumble((1f32, 0f32));
+                        Event::ActionA(pressed) => {
+                            if pressed {
+                                controller.rumble(0.5f32);
+                            }
                         }
-                    }
-                    Event::BumperR(pressed) => {
-                        if pressed {
-                            controller.rumble((0f32, 1f32));
+                        Event::ActionB(pressed) => {
+                            if pressed {
+                                drive.go_forward()?;
+                            } else {
+                                drive.stop()?;
+                            }
                         }
+                        Event::ActionH(_pressed) => {
+                        }
+                        Event::ActionV(_pressed) => {
+                        }
+                        Event::Exit(pressed) => {
+                            if pressed {
+                                if let Some(power_info) = check_controller_power(controller.filename())? {
+                                    println!("Power info: {}", power_info);
+                                }
+                            }
+                        }
+                        Event::BumperL(pressed) => {
+                            if pressed {
+                                controller.rumble((1f32, 0f32));
+                            }
+                        }
+                        Event::BumperR(pressed) => {
+                            if pressed {
+                                controller.rumble((0f32, 1f32));
+                            }
+                        }
+                        Event::JoyY(value) => {
+                            drive.right_motor(Some(-value))?; // opposite motor
+                        }
+                        Event::TriggerL(value) => {
+                            drive.left_motor(Some(value))?;
+                        }
+                        Event::CamY(value) => {
+                            drive.left_motor(Some(-value))?; // opposite motor
+                        }
+                        Event::TriggerR(value) => {
+                            drive.right_motor(Some(value))?;
+                        }
+                        _ => {}
                     }
-                    Event::JoyY(value) => {
-                        drive.right_motor(Some(-value))?; // opposite motor
-                    }
-                    Event::TriggerL(value) => {
-                        drive.left_motor(Some(value))?;
-                    }
-                    Event::CamY(value) => {
-                        drive.left_motor(Some(-value))?; // opposite motor
-                    }
-                    Event::TriggerR(value) => {
-                        drive.right_motor(Some(value))?;
-                    }
-                    _ => {}
                 }
+                
             },
 
         }
