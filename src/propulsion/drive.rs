@@ -39,6 +39,7 @@ impl Drive {
 		})
 	}
 
+	#[allow(dead_code)]
 	pub fn go_forward(&mut self) -> Result<(), PropulsionError> {
 		self.left_motor(Some(1.0))?;
 		self.right_motor(Some(1.0))?;

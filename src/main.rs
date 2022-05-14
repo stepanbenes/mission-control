@@ -62,6 +62,11 @@ async fn main_program_loop(mut controller_listener: mpsc::Receiver<String>) -> R
 
     let mut event_combinator = event_combinator::EventCombinator::new();
 
+    let mut left_motor_direction = 1_f64;
+    let mut right_motor_direction = 1_f64;
+    let mut left_motor_speed = 0_f64;
+    let mut right_motor_speed = 0_f64;
+
     loop {
 
         tokio::select! {
@@ -105,19 +110,25 @@ async fn main_program_loop(mut controller_listener: mpsc::Receiver<String>) -> R
                         }
                         Event::ActionA(pressed) => {
                             if pressed {
-                                controller.rumble(0.5f32);
+                                left_motor_speed = 0_f64;
+                                right_motor_speed = 0_f64;
+                                drive.stop()?;
                             }
                         }
                         Event::ActionB(pressed) => {
                             if pressed {
-                                drive.go_forward()?;
-                            } else {
-                                drive.stop()?;
+                                 controller.rumble(0.5f32);
                             }
                         }
                         Event::ActionH(_pressed) => {
                         }
-                        Event::ActionV(_pressed) => {
+                        Event::ActionV(pressed) => {
+                            if pressed {
+                                left_motor_speed = 1_f64;
+                                right_motor_speed = 1_f64;
+                                drive.left_motor(Some(left_motor_direction * left_motor_speed))?;
+                                drive.right_motor(Some(right_motor_direction * right_motor_speed))?;
+                            }
                         }
                         Event::Exit(pressed) => {
                             if pressed {
@@ -128,25 +139,31 @@ async fn main_program_loop(mut controller_listener: mpsc::Receiver<String>) -> R
                         }
                         Event::BumperL(pressed) => {
                             if pressed {
-                                controller.rumble((1f32, 0f32));
+                                left_motor_direction = -left_motor_direction;
+                                drive.left_motor(Some(left_motor_direction * left_motor_speed))?;
+                                //controller.rumble((1f32, 0f32));
                             }
                         }
                         Event::BumperR(pressed) => {
                             if pressed {
-                                controller.rumble((0f32, 1f32));
+                                right_motor_direction = -right_motor_direction;
+                                drive.right_motor(Some(right_motor_direction * right_motor_speed))?;
+                                //controller.rumble((0f32, 1f32));
                             }
                         }
                         Event::JoyY(value) => {
                             drive.right_motor(Some(-value))?; // opposite motor
                         }
-                        Event::TriggerL(value) => {
-                            drive.left_motor(Some(value))?;
-                        }
                         Event::CamY(value) => {
                             drive.left_motor(Some(-value))?; // opposite motor
                         }
+                        Event::TriggerL(value) => {
+                            left_motor_speed = value;
+                            drive.left_motor(Some(left_motor_direction * left_motor_speed))?;
+                        }
                         Event::TriggerR(value) => {
-                            drive.right_motor(Some(value))?;
+                            right_motor_speed = value;
+                            drive.right_motor(Some(right_motor_direction * right_motor_speed))?;
                         }
                         _ => {}
                     }
