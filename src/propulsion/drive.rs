@@ -8,6 +8,16 @@ pub struct Drive {
 	backward2_pin: OutputPin,
 	pwm0: Pwm,
 	pwm1: Pwm,
+	left_motor_direction: f64,
+	right_motor_direction: f64,
+	left_motor_speed: f64,
+	right_motor_speed: f64,
+}
+
+#[derive(Debug)]
+pub enum MotorDirection {
+	Forward,
+	Backward
 }
 
 impl Drive {
@@ -36,85 +46,93 @@ impl Drive {
 			backward2_pin,
 			pwm0,
 			pwm1,
+			left_motor_direction: 1_f64,
+    		right_motor_direction: 1_f64,
+			left_motor_speed: 0_f64,
+			right_motor_speed: 0_f64,
 		})
 	}
 
-	#[allow(dead_code)]
-	pub fn go_forward(&mut self) -> Result<(), PropulsionError> {
-		self.left_motor(Some(1.0))?;
-		self.right_motor(Some(1.0))?;
-		Ok(())
-	}
-
-	#[allow(dead_code)]
-	pub fn go_backward(&mut self) -> Result<(), PropulsionError> {
-		self.left_motor(Some(-1.0))?;
-		self.right_motor(Some(-1.0))?;
+	pub fn go(&mut self) -> Result<(), PropulsionError> {
+		self.left_motor_speed = 1_f64;
+		self.right_motor_speed = 1_f64;
+		self.pwm0.set_duty_cycle(self.left_motor_speed)?;
+		self.pwm1.set_duty_cycle(self.right_motor_speed)?;
+		self.pwm0.enable()?;
+		self.pwm1.enable()?;
 		Ok(())
 	}
 
 	pub fn stop(&mut self) -> Result<(), PropulsionError> {
-		self.left_motor(None)?;
-		self.right_motor(None)?;
+		self.left_motor_speed = 0_f64;
+		self.right_motor_speed = 0_f64;
+		self.pwm0.disable()?;
+		self.pwm1.disable()?;
 		Ok(())
 	}
 
-	pub fn left_motor(&mut self, velocity: Option<f64>) -> Result<(), PropulsionError> {
-		if let Some(velocity) = velocity {
-			if velocity == 0.0 {
-				self.forward1_pin.set_low();
-				self.backward1_pin.set_low();
-				self.pwm0.set_duty_cycle(0.0)?;
-			}
-			else if (-1.0..0.0).contains(&velocity) {
-				// set backward
-				self.forward1_pin.set_low();
-				self.backward1_pin.set_high();
-				self.pwm0.set_duty_cycle(Drive::map_from_range_to_range(velocity.abs(), 0.0..=1.0, 0.0..=1.0))?;
-			}
-			else if (0.0..=1.0).contains(&velocity) {
-				// set forward
+	pub fn left_motor_direction(&mut self, direction: MotorDirection) -> Result<(), PropulsionError> {
+		match direction {
+			MotorDirection::Forward => {
+				self.left_motor_direction = 1.0_f64;
 				self.forward1_pin.set_high();
 				self.backward1_pin.set_low();
-				self.pwm0.set_duty_cycle(Drive::map_from_range_to_range(velocity, 0.0..=1.0, 0.0..=1.0))?;
 			}
-			else {
-				return Err(format!("`velocity` is outside of allowed range -1..1 (was {}).", velocity).into());
+			MotorDirection::Backward => {
+				self.left_motor_direction = -1.0_f64;
+				self.forward1_pin.set_low();
+				self.backward1_pin.set_high();
 			}
-			Ok(self.pwm0.enable()?)
 		}
-		else {
-			Ok(self.pwm0.disable()?)
-		}
+		self.pwm0.set_duty_cycle(self.left_motor_speed)?;
+		Ok(())
 	}
 
-	pub fn right_motor(&mut self, velocity: Option<f64>) -> Result<(), PropulsionError> {
-		if let Some(velocity) = velocity {
-			if velocity == 0.0 {
-				self.forward2_pin.set_low();
-				self.backward2_pin.set_low();
-				self.pwm1.set_duty_cycle(0.0)?;
-			}
-			else if (-1.0..0.0).contains(&velocity) {
-				// set backward
-				self.forward2_pin.set_low();
-				self.backward2_pin.set_high();
-				self.pwm1.set_duty_cycle(Drive::map_from_range_to_range(velocity.abs(), 0.0..=1.0, 0.5..=1.0))?;
-			}
-			else if (0.0..=1.0).contains(&velocity) {
-				// set forward
+	pub fn right_motor_direction(&mut self, direction: MotorDirection) -> Result<(), PropulsionError> {
+		match direction {
+			MotorDirection::Forward => {
+				self.right_motor_direction = 1.0_f64;
 				self.forward2_pin.set_high();
 				self.backward2_pin.set_low();
-				self.pwm1.set_duty_cycle(Drive::map_from_range_to_range(velocity, 0.0..=1.0, 0.5..=1.0))?;
 			}
-			else {
-				return Err(format!("`velocity` is outside of allowed range -1..1 (was {}).", velocity).into());
+			MotorDirection::Backward => {
+				self.right_motor_direction = -1.0_f64;
+				self.forward2_pin.set_low();
+				self.backward2_pin.set_high();
 			}
-			Ok(self.pwm1.enable()?)
+		}
+		self.pwm1.set_duty_cycle(self.right_motor_speed)?;
+		Ok(())
+	}
+
+	pub fn left_motor_speed(&mut self, speed: f64) -> Result<(), PropulsionError> {
+		if speed == 0.0 {
+			self.left_motor_speed = 0_f64;
+		}
+		else if (0.0..=1.0).contains(&speed) {
+			// set forward
+			self.left_motor_speed = Drive::map_from_range_to_range(speed, 0.0..=1.0, 0.0..=1.0);
 		}
 		else {
-			Ok(self.pwm1.disable()?)
+			return Err(format!("`speed` is outside of allowed range -1..1 (was {}).", speed).into());
 		}
+		self.pwm0.set_duty_cycle(self.left_motor_speed)?;
+		Ok(self.pwm0.enable()?)
+	}
+
+	pub fn right_motor_speed(&mut self, speed: f64) -> Result<(), PropulsionError> {
+		if speed == 0.0 {
+			self.right_motor_speed = 0_f64;
+		}
+		else if (0.0..=1.0).contains(&speed) {
+			// set forward
+			self.right_motor_speed = Drive::map_from_range_to_range(speed, 0.0..=1.0, 0.5..=1.0);
+		}
+		else {
+			return Err(format!("`speed` is outside of allowed range -1..1 (was {}).", speed).into());
+		}
+		self.pwm1.set_duty_cycle(self.right_motor_speed)?;
+		Ok(self.pwm1.enable()?)
 	}
 
 	fn map_from_range_to_range(value: f64, from_range: std::ops::RangeInclusive<f64>, to_range: std::ops::RangeInclusive<f64>) -> f64 {
