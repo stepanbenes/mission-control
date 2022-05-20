@@ -1,0 +1,17 @@
+#!/bin/bash
+set -e
+
+PI_IP=192.168.1.168 # mark1
+TARGET=arm-unknown-linux-gnueabihf
+
+# build binary
+cargo build --release --target $TARGET
+
+# upload binary
+echo "updating mission-control binary"
+scp -r ./target/$TARGET/release/mission-control pi@$PI_IP:/home/pi/mission-control
+
+# execute binary
+echo -n "restarting mission-control service... "
+ssh pi@$PI_IP '/home/pi/update-mission-control'
+echo "done"

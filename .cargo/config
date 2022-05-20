@@ -1,2 +1,8 @@
 [target.armv7-unknown-linux-gnueabihf]
 linker = "arm-linux-gnueabihf-gcc"
+[target.arm-unknown-linux-gnueabihf]
+# target for armv6, using linker for rpi_tools
+# rustup target add arm-unknown-linux-gnueabi
+# git clone https://github.com/raspberrypi/tools $HOME/rpi_tools
+# see: https://github.com/japaric/rust-cross/issues/42#issuecomment-550018590
+linker = "/home/stepan/rpi_tools/arm-bcm2708/arm-rpi-4.9.3-linux-gnueabihf/bin/arm-linux-gnueabihf-gcc"
