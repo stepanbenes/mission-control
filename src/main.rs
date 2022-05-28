@@ -3,6 +3,7 @@ mod deep_space_network;
 mod error;
 mod propulsion;
 mod event_combinator;
+mod winch;
 
 #[macro_use]
 extern crate lazy_static;
@@ -56,12 +57,10 @@ async fn main_program_loop(mut controller_listener: mpsc::Receiver<String>) -> R
     let mut controllers: Vec<_> = Vec::<Controller>::new();
     let mut disconnected_controllers_times = HashMap::<String, Instant>::new();
     let controller_provider = ControllerProvider::new(vec!["Wireless Controller"]);
-
     let mut sigterm_stream = signal(SignalKind::terminate())?;
-
     let mut drive = Drive::initialize()?;
-
     let mut event_combinator = event_combinator::EventCombinator::new();
+    let mut winch = winch::Winch::initialize()?;
 
     loop {
 
@@ -128,9 +127,15 @@ async fn main_program_loop(mut controller_listener: mpsc::Receiver<String>) -> R
                                 }
                             }
                         }
-                        Event::BumperL(_pressed) => {
+                        Event::BumperL(pressed) => {
+                            if pressed {
+                                winch.wind();
+                            }
                         }
-                        Event::BumperR(_pressed) => {
+                        Event::BumperR(pressed) => {
+                            if pressed {
+                                winch.unwind();
+                            }
                         }
                         Event::JoyY(value) => {
                             drive.right_motor_direction(if value >= 0_f64 { MotorDirection::Forward } else { MotorDirection::Backward })?;
