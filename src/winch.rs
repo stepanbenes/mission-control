@@ -34,7 +34,7 @@ impl Winch {
 		let in2 = gpio.get(23)?.into_output_low();
 		let in3 = gpio.get(24)?.into_output_low();
 		let in4 = gpio.get(25)?.into_output_low();
-		let electromagnet = gpio.get(4)?.into_output_low();
+		let electromagnet = gpio.get(4)?.into_output_high(); // high is off
 		Ok(Self {
 			in1, in2, in3, in4, electromagnet
 		})
@@ -53,9 +53,9 @@ impl Winch {
 	}
 
 	pub fn release(&mut self) {
-		self.electromagnet.set_high();
-		std::thread::sleep(Duration::from_millis(200));
 		self.electromagnet.set_low();
+		std::thread::sleep(Duration::from_millis(200));
+		self.electromagnet.set_high();
 	}
 
 	fn step_forward(&mut self, delay: Duration) {
@@ -63,6 +63,7 @@ impl Winch {
 			self.set_stepper_motor_pins(state);
 			std::thread::sleep(delay);
 		}
+		self.turn_off_motor();
 	}
 
 	#[allow(dead_code)]
@@ -71,6 +72,11 @@ impl Winch {
 			self.set_stepper_motor_pins(*state);
 			std::thread::sleep(delay);
 		}
+		self.turn_off_motor();
+	}
+	
+	fn turn_off_motor(&mut self) {
+		self.set_stepper_motor_pins((false, false, false, false));
 	}
 
 	fn set_stepper_motor_pins(&mut self, (in1_enabled, in2_enabled, in3_enabled, in4_enabled): (bool, bool, bool, bool)) {
