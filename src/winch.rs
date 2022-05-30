@@ -24,17 +24,19 @@ pub struct Winch {
 	in2: OutputPin,
 	in3: OutputPin,
 	in4: OutputPin,
+	electromagnet: OutputPin,
 }
 
 impl Winch {
 	pub fn initialize() -> Result<Self, Error> {
 		let gpio = rppal::gpio::Gpio::new()?;
-		let in1 = gpio.get(101)?.into_output_low();
-		let in2 = gpio.get(102)?.into_output_low();
-		let in3 = gpio.get(103)?.into_output_low();
-		let in4 = gpio.get(104)?.into_output_low();
+		let in1 = gpio.get(22)?.into_output_low();
+		let in2 = gpio.get(23)?.into_output_low();
+		let in3 = gpio.get(24)?.into_output_low();
+		let in4 = gpio.get(25)?.into_output_low();
+		let electromagnet = gpio.get(4)?.into_output_low();
 		Ok(Self {
-			in1, in2, in3, in4
+			in1, in2, in3, in4, electromagnet
 		})
 	}
 
@@ -48,6 +50,12 @@ impl Winch {
 		for _ in 0..STEP_COUNT {
 			self.step_backward(STEP_SLEEP);
 		}
+	}
+
+	pub fn release(&mut self) {
+		self.electromagnet.set_high();
+		std::thread::sleep(Duration::from_millis(200));
+		self.electromagnet.set_low();
 	}
 
 	fn step_forward(&mut self, delay: Duration) {

@@ -113,7 +113,10 @@ async fn main_program_loop(mut controller_listener: mpsc::Receiver<String>) -> R
                                  controller.rumble(0.5f32);
                             }
                         }
-                        Event::ActionH(_pressed) => {
+                        Event::ActionH(pressed) => {
+                            if pressed {
+                                winch.release();
+                            }
                         }
                         Event::ActionV(pressed) => {
                             if pressed {

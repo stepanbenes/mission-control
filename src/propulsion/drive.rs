@@ -24,10 +24,10 @@ impl Drive {
 	pub fn initialize() -> Result<Self, PropulsionError> {
 		let gpio = rppal::gpio::Gpio::new()?;
 
-		let mut forward1_pin = gpio.get(22)?.into_output();
-		let mut backward1_pin = gpio.get(23)?.into_output();
-		let mut forward2_pin = gpio.get(25)?.into_output();
-		let mut backward2_pin = gpio.get(24)?.into_output();
+		let mut forward1_pin = gpio.get(5)?.into_output();
+		let mut backward1_pin = gpio.get(6)?.into_output();
+		let mut forward2_pin = gpio.get(26)?.into_output();
+		let mut backward2_pin = gpio.get(27)?.into_output();
 
 		forward1_pin.set_low();
 		backward1_pin.set_low();
