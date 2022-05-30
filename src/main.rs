@@ -3,6 +3,7 @@ mod deep_space_network;
 mod error;
 mod propulsion;
 mod event_combinator;
+mod sonar;
 
 #[macro_use]
 extern crate lazy_static;
@@ -63,6 +64,8 @@ async fn main_program_loop(mut controller_listener: mpsc::Receiver<String>) -> R
 
     let mut event_combinator = event_combinator::EventCombinator::new();
 
+    let mut sonar = sonar::Sonar::initialize()?;
+
     loop {
 
         tokio::select! {
@@ -114,7 +117,11 @@ async fn main_program_loop(mut controller_listener: mpsc::Receiver<String>) -> R
                                  controller.rumble(0.5f32);
                             }
                         }
-                        Event::ActionH(_pressed) => {
+                        Event::ActionH(pressed) => {
+                            if pressed {
+                                let distance = sonar.measure_distance()?;
+                                println!("distance: {} cm", distance);
+                            }
                         }
                         Event::ActionV(pressed) => {
                             if pressed {
