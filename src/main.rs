@@ -60,7 +60,7 @@ async fn main_program_loop(mut controller_listener: mpsc::Receiver<String>) -> R
     let mut sigterm_stream = signal(SignalKind::terminate())?;
     let mut drive = Drive::initialize()?;
     let mut event_combinator = event_combinator::EventCombinator::new();
-    let mut winch = winch::Winch::initialize()?;
+    //let mut winch = winch::Winch::initialize()?;
 
     loop {
 
@@ -113,10 +113,10 @@ async fn main_program_loop(mut controller_listener: mpsc::Receiver<String>) -> R
                                  controller.rumble(0.5f32);
                             }
                         }
-                        Event::ActionH(pressed) => {
-                            if pressed {
-                                winch.release();
-                            }
+                        Event::ActionH(_pressed) => {
+                            // if pressed {
+                            //     winch.release();
+                            // }
                         }
                         Event::ActionV(pressed) => {
                             if pressed {
@@ -130,23 +130,21 @@ async fn main_program_loop(mut controller_listener: mpsc::Receiver<String>) -> R
                                 }
                             }
                         }
-                        Event::BumperL(pressed) => {
-                            if pressed {
-                                winch.wind();
-                            }
+                        Event::BumperL(_pressed) => {
+                            // if pressed {
+                            //     winch.wind();
+                            // }
                         }
-                        Event::BumperR(pressed) => {
-                            if pressed {
-                                winch.unwind();
-                            }
+                        Event::BumperR(_pressed) => {
+                            // if pressed {
+                            //     winch.unwind();
+                            // }
                         }
                         Event::JoyY(value) => {
-                            drive.left_motor_direction(if value >= 0_f64 { MotorDirection::Forward } else { MotorDirection::Backward })?;
-                            drive.left_motor_speed(value.abs())?;
+                            drive.left_motor_speed(value)?;
                         }
                         Event::CamY(value) => {
-                            drive.right_motor_direction(if value >= 0_f64 { MotorDirection::Forward } else { MotorDirection::Backward })?;
-                            drive.right_motor_speed(value.abs())?;
+                            drive.right_motor_speed(value)?;
                         }
                         Event::TriggerL(value) => {
                             drive.left_motor_speed(value)?;
