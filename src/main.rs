@@ -3,6 +3,8 @@ mod deep_space_network;
 mod error;
 mod drive;
 mod event_combinator;
+
+#[allow(dead_code)]
 mod winch;
 
 #[macro_use]
