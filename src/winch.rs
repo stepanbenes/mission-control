@@ -15,9 +15,9 @@ const STEP_SEQUENCE: [(bool, bool, bool, bool); 8] = [
 	(false,false,true ,true ),
 	(false,false,false,true )];
 
-const STEP_SLEEP: Duration = Duration::from_millis(2); // careful lowering this, at some point you run into the mechanical limitation of how quick your motor can move
+const STEP_SLEEP: Duration = Duration::from_micros(1000); // careful lowering this, at some point you run into the mechanical limitation of how quick your motor can move
 
-const STEP_COUNT: u32 = 4096; // 5.625*(1/64) per step, 4096 steps is 360°
+const STEP_COUNT: u32 = 512; // 4096 substeps is 360 degrees
 
 pub struct Winch {
 	in1: OutputPin,
