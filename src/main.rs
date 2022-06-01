@@ -141,10 +141,10 @@ async fn main_program_loop(mut controller_listener: mpsc::Receiver<String>) -> R
                             // }
                         }
                         Event::JoyY(value) => {
-                            drive.left_motor_speed(value)?;
+                            drive.right_motor_speed(-value)?;
                         }
                         Event::CamY(value) => {
-                            drive.right_motor_speed(value)?;
+                            drive.left_motor_speed(-value)?;
                         }
                         Event::TriggerL(value) => {
                             drive.left_motor_speed(value)?;

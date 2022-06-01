@@ -46,6 +46,8 @@ impl Drive {
 	}
 
 	pub fn go(&mut self) -> Result<(), PropulsionError> {
+		self.left_motor_direction(MotorDirection::Forward)?;
+		self.right_motor_direction(MotorDirection::Forward)?;
 		self.pwm0.set_duty_cycle(1.0)?;
 		self.pwm1.set_duty_cycle(1.0)?;
 		self.pwm0.enable()?;
@@ -54,6 +56,8 @@ impl Drive {
 	}
 
 	pub fn stop(&mut self) -> Result<(), PropulsionError> {
+		self.left_motor_direction(MotorDirection::None)?;
+		self.right_motor_direction(MotorDirection::None)?;
 		self.pwm0.disable()?;
 		self.pwm1.disable()?;
 		Ok(())
