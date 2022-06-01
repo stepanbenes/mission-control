@@ -25,7 +25,7 @@ lazy_static! {
     static ref DEVICE_INFO_ADDRESS_LINE_REGEX: regex::Regex = regex::Regex::new("^U: Uniq=([a-zA-Z0-9:]+)$").unwrap();
     static ref DEVICE_INFO_HANDLERS_LINE_REGEX: regex::Regex = regex::Regex::new("^H: Handlers=([a-zA-Z0-9\\s]+)$").unwrap();
 }
-
+ 
 // ==================================================
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -141,12 +141,12 @@ async fn main_program_loop(mut controller_listener: mpsc::Receiver<String>) -> R
                             }
                         }
                         Event::JoyY(value) => {
-                            drive.right_motor_direction(if value >= 0_f64 { MotorDirection::Forward } else { MotorDirection::Backward })?;
-                            drive.right_motor_speed(value.abs())?; // opposite motor
+                            drive.left_motor_direction(if value >= 0_f64 { MotorDirection::Forward } else { MotorDirection::Backward })?;
+                            drive.left_motor_speed(value.abs())?;
                         }
                         Event::CamY(value) => {
-                            drive.left_motor_direction(if value >= 0_f64 { MotorDirection::Forward } else { MotorDirection::Backward })?;
-                            drive.left_motor_speed(value.abs())?; // opposite motor
+                            drive.right_motor_direction(if value >= 0_f64 { MotorDirection::Forward } else { MotorDirection::Backward })?;
+                            drive.right_motor_speed(value.abs())?;
                         }
                         Event::TriggerL(value) => {
                             drive.left_motor_speed(value)?;
