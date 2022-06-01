@@ -1,7 +1,7 @@
 mod stick;
 mod deep_space_network;
 mod error;
-mod propulsion;
+mod drive;
 mod event_combinator;
 mod winch;
 
@@ -13,7 +13,7 @@ use futures::{stream::{FuturesUnordered, StreamExt}, FutureExt};
 use tokio::{sync::mpsc, signal::{ctrl_c, unix::{signal, SignalKind}}};
 
 use stick::{Controller, Event, Listener, ControllerProvider, check_controller_power};
-use propulsion::{Drive, MotorDirection};
+use drive::{Drive, MotorDirection};
 
 // ==================================================
 // REGEX definitions >>>
