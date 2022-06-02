@@ -134,7 +134,7 @@ async fn main_program_loop(mut controller_listener: mpsc::Receiver<String>) -> R
                         }
                         Event::BumperL(pressed) => {
                             if pressed {
-                                winch.wind(1.0)?;
+                                winch.wind()?;
                             }
                             else {
                                 winch.stop()?;
@@ -142,7 +142,7 @@ async fn main_program_loop(mut controller_listener: mpsc::Receiver<String>) -> R
                         }
                         Event::BumperR(pressed) => {
                             if pressed {
-                                winch.unwind(1.0)?;
+                                winch.unwind()?;
                             }
                             else {
                                 winch.stop()?;

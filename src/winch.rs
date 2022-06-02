@@ -1,5 +1,4 @@
 use std::{time::Duration, thread::JoinHandle};
-
 use rppal::gpio::{Error, OutputPin};
 
 /// see: https://ben.akrin.com/driving-a-28byj-48-stepper-motor-uln2003-driver-with-a-raspberry-pi/
@@ -51,18 +50,6 @@ impl WinchDriver {
 		Ok(winch_driver)
 	}
 
-    pub fn wind(&mut self) {
-        for _ in 0..STEP_COUNT {
-            self.step_forward(STEP_SLEEP);
-        }
-    }
-
-    pub fn unwind(&mut self) {
-        for _ in 0..STEP_COUNT {
-            self.step_backward(STEP_SLEEP);
-        }
-    }
-
 	pub fn release(&mut self) {
         self.electromagnet.set_low();
         std::thread::sleep(Duration::from_millis(200));
@@ -74,7 +61,6 @@ impl WinchDriver {
             self.set_stepper_motor_pins(state);
             std::thread::sleep(delay);
         }
-        self.turn_off_motor();
     }
 
     #[allow(dead_code)]
@@ -83,7 +69,6 @@ impl WinchDriver {
             self.set_stepper_motor_pins(*state);
             std::thread::sleep(delay);
         }
-        self.turn_off_motor();
     }
 
     fn turn_off_motor(&mut self) {
@@ -119,9 +104,9 @@ impl WinchDriver {
 
 enum WinchCommand {
     Wind { speed: f64 },
-    Unwind { speed: f64 },
     Stop,
     Release,
+    Quit,
 }
 
 impl Winch {
@@ -130,22 +115,35 @@ impl Winch {
 
         let thread_handle = std::thread::spawn(move || {
             let mut driver = WinchDriver::initialize().unwrap();
-			while let Ok(command) = rx.recv() {
-				match command {
-                    WinchCommand::Wind { speed: _ } => {
-                        // TODO: use rx.try_recv in loop and run winch motor until WinchCommand::Stop is received
-                    }
-                    WinchCommand::Unwind { speed: _ } => {
-                        // TODO: same as above
+            let mut iter = rx.iter().peekable();
+            while let Some(command) = iter.next() {
+                match command {
+                    WinchCommand::Wind { speed } => {
+                        loop {
+                            if speed >= 0.0 {
+                                driver.step_forward(STEP_SLEEP);
+                            }
+                            else {
+                                driver.step_backward(STEP_SLEEP);
+                            }
+                            if let Some(WinchCommand::Stop) | Some(WinchCommand::Quit) = iter.peek() {
+                                break;
+                            }
+                        }
                     }
                     WinchCommand::Stop => {
-
+                        driver.turn_off_motor();
                     }
                     WinchCommand::Release => {
                         driver.release();
                     }
+                    WinchCommand::Quit => {
+                        break; // quit loop
+                    }
                 }
-			}
+            }
+
+            driver.turn_off_motor();
         });
 
 
@@ -155,13 +153,13 @@ impl Winch {
 		})
     }
 
-	pub fn wind(&mut self, speed: f64) -> Result<(), WinchError> {
-		self.sender.send(WinchCommand::Wind { speed })?;
+	pub fn wind(&mut self) -> Result<(), WinchError> {
+		self.sender.send(WinchCommand::Wind { speed: 1.0 })?;
         Ok(())
     }
 
-    pub fn unwind(&mut self, speed: f64) -> Result<(), WinchError> {
-        self.sender.send(WinchCommand::Unwind { speed })?;
+    pub fn unwind(&mut self) -> Result<(), WinchError> {
+		self.sender.send(WinchCommand::Wind { speed: -1.0 })?;
         Ok(())
     }
 	
@@ -175,6 +173,12 @@ impl Winch {
         Ok(())
     }
     
+}
+
+impl Drop for Winch {
+    fn drop(&mut self) {
+        self.sender.send(WinchCommand::Quit).unwrap();
+    }
 }
 
 #[derive(Debug)]
