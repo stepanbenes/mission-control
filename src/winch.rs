@@ -22,7 +22,7 @@ const STEP_COUNT: u32 = 512; // 4096 substeps is 360 degrees
 
 pub struct Winch {
 	thread_handle: JoinHandle<()>,
-	sender: std::sync::mpsc::Sender<()>,
+	sender: std::sync::mpsc::Sender<WinchCommand>,
 }
 
 struct WinchDriver {
@@ -117,14 +117,34 @@ impl WinchDriver {
     }
 }
 
+enum WinchCommand {
+    Wind { speed: f64 },
+    Unwind { speed: f64 },
+    Stop,
+    Release,
+}
+
 impl Winch {
     pub fn initialize() -> Result<Self, Error> {
-		let (tx, rx) = std::sync::mpsc::channel::<()>();
+		let (tx, rx) = std::sync::mpsc::channel::<WinchCommand>();
 
         let thread_handle = std::thread::spawn(move || {
-            let _driver = WinchDriver::initialize().unwrap();
-			while let Ok(_) = rx.recv() {
-				// TODO: match on recvs
+            let mut driver = WinchDriver::initialize().unwrap();
+			while let Ok(command) = rx.recv() {
+				match command {
+                    WinchCommand::Wind { speed: _ } => {
+                        // TODO: use rx.try_recv in loop and run winch motor until WinchCommand::Stop is received
+                    }
+                    WinchCommand::Unwind { speed: _ } => {
+                        // TODO: same as above
+                    }
+                    WinchCommand::Stop => {
+
+                    }
+                    WinchCommand::Release => {
+                        driver.release();
+                    }
+                }
 			}
         });
 
@@ -135,16 +155,45 @@ impl Winch {
 		})
     }
 
-	pub fn wind(&mut self) {
-		//self.sender.send(...)?;
+	pub fn wind(&mut self, speed: f64) -> Result<(), WinchError> {
+		self.sender.send(WinchCommand::Wind { speed })?;
+        Ok(())
     }
 
-    pub fn unwind(&mut self) {
-
+    pub fn unwind(&mut self, speed: f64) -> Result<(), WinchError> {
+        self.sender.send(WinchCommand::Unwind { speed })?;
+        Ok(())
     }
 	
-	pub fn release(&mut self) {
+    pub fn stop(&mut self) -> Result<(), WinchError> {
+        self.sender.send(WinchCommand::Stop)?;
+        Ok(())
+    }
 
+	pub fn release(&mut self) -> Result<(), WinchError> {
+        self.sender.send(WinchCommand::Release)?;
+        Ok(())
     }
     
+}
+
+#[derive(Debug)]
+pub struct WinchError(String);
+
+impl<T> From<std::sync::mpsc::SendError<T>> for WinchError {
+    fn from(error: std::sync::mpsc::SendError<T>) -> Self {
+        Self(error.to_string())
+    }
+}
+
+impl std::fmt::Display for WinchError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f,"{}", self.0)
+    }
+}
+
+impl std::error::Error for WinchError {
+    fn description(&self) -> &str {
+        &self.0
+    }
 }
