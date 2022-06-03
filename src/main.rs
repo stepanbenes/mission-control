@@ -161,17 +161,24 @@ async fn main_program_loop(
                             drive.left_motor_speed(-value)?;
                         }
                         Event::JoyZ(value) => {
-                            winch.wind((value + 1.0) / 2.0)?;
+                            let speed = (value + 1.0) / 2.0;
+                            if speed > 0.0 {
+                                winch.wind(speed)?;
+                            } else {
+                                winch.stop()?;
+                            }
                             //drive.left_motor_speed(value)?;
                         }
                         Event::CamZ(value) => {
-                            winch.unwind((value + 1.0) / 2.0)?;
-                            //drive.right_motor_speed(value)?;
-                        }
-                        Event::TriggerL(value) | Event::TriggerR(value) => {
-                            if value == 0.0 {
+                            let speed = (value + 1.0) / 2.0;
+                            if speed > 0.0 {
+                                winch.unwind(speed)?;
+                            } else {
                                 winch.stop()?;
                             }
+                            //drive.right_motor_speed(value)?;
+                        }
+                        Event::TriggerL(_value) | Event::TriggerR(_value) => {
                         }
                         _ => {}
                     }

@@ -136,7 +136,17 @@ impl Winch {
                                         continue 'inner_loop;
                                     }
                                     Ok(new_command) => {
-                                        peek_command = Some(new_command);
+                                        match try_get_last_command(&rx) {
+                                            Ok(last_command) => {
+                                                peek_command = Some(last_command);
+                                            }
+                                            Err(TryRecvError::Empty) => {
+                                                peek_command = Some(new_command);
+                                            }
+                                            Err(TryRecvError::Disconnected) => {
+                                                break 'outer_loop;
+                                            }
+                                        }
                                         continue 'middle_loop;
                                     }
                                     Err(TryRecvError::Disconnected) => {
@@ -163,7 +173,31 @@ impl Winch {
                 fn map_speed_to_delay(speed: f64) -> Duration {
                     let speed = speed.abs().max(0.0).min(1.0);
                     let multiplier = 1.0 - speed;
-                    Duration::from_secs_f64(MIN_STEP_SLEEP.as_secs_f64() + (MAX_STEP_SLEEP.as_secs_f64() - MIN_STEP_SLEEP.as_secs_f64()) * multiplier)
+                    Duration::from_secs_f64(
+                        MIN_STEP_SLEEP.as_secs_f64()
+                            + (MAX_STEP_SLEEP.as_secs_f64() - MIN_STEP_SLEEP.as_secs_f64())
+                                * multiplier,
+                    )
+                }
+
+                fn try_get_last_command(
+                    rx: &std::sync::mpsc::Receiver<WinchCommand>,
+                ) -> Result<WinchCommand, TryRecvError> {
+                    let mut last_result = Err(TryRecvError::Empty);
+                    loop {
+                        let result = rx.try_recv();
+                        match result {
+                            Ok(_) => {
+                                last_result = result;
+                            }
+                            Err(TryRecvError::Disconnected) => {
+                                return result;
+                            }
+                            Err(TryRecvError::Empty) => {
+                                return last_result;
+                            }
+                        }
+                    }
                 }
             }
 
