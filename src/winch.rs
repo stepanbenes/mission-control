@@ -1,4 +1,4 @@
-use std::{time::Duration, thread::JoinHandle};
+use std::{time::Duration, thread::JoinHandle, sync::mpsc::TryRecvError};
 use rppal::gpio::{Error, OutputPin};
 
 /// see: https://ben.akrin.com/driving-a-28byj-48-stepper-motor-uln2003-driver-with-a-raspberry-pi/
@@ -15,7 +15,7 @@ const STEP_SEQUENCE: [(bool, bool, bool, bool); 8] = [
     (false, false, false, true),
 ];
 
-const STEP_SLEEP: Duration = Duration::from_micros(1000); // careful lowering this, at some point you run into the mechanical limitation of how quick your motor can move
+const STEP_SLEEP: Duration = Duration::from_micros(2000); // careful lowering this, at some point you run into the mechanical limitation of how quick your motor can move
 
 const STEP_COUNT: u32 = 512; // 4096 substeps is 360 degrees
 
@@ -102,6 +102,7 @@ impl WinchDriver {
     }
 }
 
+#[derive(Debug)]
 enum WinchCommand {
     Wind { speed: f64 },
     Stop,
@@ -115,30 +116,50 @@ impl Winch {
 
         let thread_handle = std::thread::spawn(move || {
             let mut driver = WinchDriver::initialize().unwrap();
-            let mut iter = rx.iter().peekable();
-            while let Some(command) = iter.next() {
-                match command {
-                    WinchCommand::Wind { speed } => {
-                        loop {
-                            if speed >= 0.0 {
-                                driver.step_forward(STEP_SLEEP);
-                            }
-                            else {
-                                driver.step_backward(STEP_SLEEP);
-                            }
-                            if let Some(WinchCommand::Stop) | Some(WinchCommand::Quit) = iter.peek() {
-                                break;
+            let mut peek_command;
+            'outer_loop:
+            while let Ok(command) = rx.recv() {
+                peek_command = Some(command);
+                'middle_loop:
+                while let Some(command) = peek_command.take() {
+                    match command {
+                        WinchCommand::Wind { speed } => {
+                            'inner_loop:
+                            loop {
+                                if speed >= 0.0 {
+                                    driver.step_forward(STEP_SLEEP);
+                                }
+                                else {
+                                    driver.step_backward(STEP_SLEEP);
+                                }
+                                // break the inner loop if there is some command in the queue (except Release command)
+                                match rx.try_recv() {
+                                    Ok(WinchCommand::Release) => {
+                                        driver.release();
+                                        continue 'inner_loop;
+                                    }
+                                    Ok(new_command) => {
+                                        peek_command = Some(new_command);
+                                        continue 'middle_loop;
+                                    }
+                                    Err(TryRecvError::Disconnected) => {
+                                        break 'outer_loop;
+                                    }
+                                    Err(TryRecvError::Empty) => {
+                                        continue 'inner_loop;
+                                    }
+                                }
                             }
                         }
-                    }
-                    WinchCommand::Stop => {
-                        driver.turn_off_motor();
-                    }
-                    WinchCommand::Release => {
-                        driver.release();
-                    }
-                    WinchCommand::Quit => {
-                        break; // quit loop
+                        WinchCommand::Stop => {
+                            driver.turn_off_motor();
+                        }
+                        WinchCommand::Release => {
+                            driver.release();
+                        }
+                        WinchCommand::Quit => {
+                            break; // quit loop
+                        }
                     }
                 }
             }
