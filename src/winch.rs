@@ -15,7 +15,8 @@ const STEP_SEQUENCE: [(bool, bool, bool, bool); 8] = [
     (false, false, false, true),
 ];
 
-const STEP_SLEEP: Duration = Duration::from_micros(2000); // careful lowering this, at some point you run into the mechanical limitation of how quick your motor can move
+const MIN_STEP_SLEEP: Duration = Duration::from_micros(1000); // careful lowering this, at some point you run into the mechanical limitation of how quick your motor can move
+const MAX_STEP_SLEEP: Duration = Duration::from_micros(5000);
 
 const STEP_COUNT: u32 = 512; // 4096 substeps is 360 degrees
 
@@ -123,10 +124,10 @@ impl Winch {
                     match command {
                         WinchCommand::Wind { speed } => {
                             'inner_loop: loop {
-                                if speed >= 0.0 {
-                                    driver.step_forward(STEP_SLEEP);
-                                } else {
-                                    driver.step_backward(STEP_SLEEP);
+                                if speed > 0.0 {
+                                    driver.step_forward(map_speed_to_delay(speed));
+                                } else if speed < 0.0 {
+                                    driver.step_backward(map_speed_to_delay(speed));
                                 }
                                 // break the inner loop if there is some command in the queue (except Release command)
                                 match rx.try_recv() {
@@ -158,6 +159,12 @@ impl Winch {
                         }
                     }
                 }
+
+                fn map_speed_to_delay(speed: f64) -> Duration {
+                    let speed = speed.abs().max(0.0).min(1.0);
+                    let multiplier = 1.0 - speed;
+                    Duration::from_secs_f64(MIN_STEP_SLEEP.as_secs_f64() + (MAX_STEP_SLEEP.as_secs_f64() - MIN_STEP_SLEEP.as_secs_f64()) * multiplier)
+                }
             }
 
             driver.turn_off_motor();
@@ -169,13 +176,13 @@ impl Winch {
         })
     }
 
-    pub fn wind(&mut self) -> Result<(), WinchError> {
-        self.sender.send(WinchCommand::Wind { speed: 1.0 })?;
+    pub fn wind(&mut self, speed: f64) -> Result<(), WinchError> {
+        self.sender.send(WinchCommand::Wind { speed })?;
         Ok(())
     }
 
-    pub fn unwind(&mut self) -> Result<(), WinchError> {
-        self.sender.send(WinchCommand::Wind { speed: -1.0 })?;
+    pub fn unwind(&mut self, speed: f64) -> Result<(), WinchError> {
+        self.sender.send(WinchCommand::Wind { speed: -speed })?;
         Ok(())
     }
 

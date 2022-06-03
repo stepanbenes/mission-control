@@ -150,21 +150,9 @@ async fn main_program_loop(
                                 }
                             }
                         }
-                        Event::BumperL(pressed) => {
-                            if pressed {
-                                winch.wind()?;
-                            }
-                            else {
-                                winch.stop()?;
-                            }
+                        Event::BumperL(_pressed) => {
                         }
-                        Event::BumperR(pressed) => {
-                            if pressed {
-                                winch.unwind()?;
-                            }
-                            else {
-                                winch.stop()?;
-                            }
+                        Event::BumperR(_pressed) => {
                         }
                         Event::JoyY(value) => {
                             drive.right_motor_speed(-value)?;
@@ -172,16 +160,22 @@ async fn main_program_loop(
                         Event::CamY(value) => {
                             drive.left_motor_speed(-value)?;
                         }
-                        Event::TriggerL(value) => {
-                            drive.left_motor_speed(value)?;
+                        Event::JoyZ(value) => {
+                            winch.wind((value + 1.0) / 2.0)?;
+                            //drive.left_motor_speed(value)?;
                         }
-                        Event::TriggerR(value) => {
-                            drive.right_motor_speed(value)?;
+                        Event::CamZ(value) => {
+                            winch.unwind((value + 1.0) / 2.0)?;
+                            //drive.right_motor_speed(value)?;
+                        }
+                        Event::TriggerL(value) | Event::TriggerR(value) => {
+                            if value == 0.0 {
+                                winch.stop()?;
+                            }
                         }
                         _ => {}
                     }
                 }
-
             },
 
         }
