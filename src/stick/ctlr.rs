@@ -348,12 +348,7 @@ impl Controller {
         }
     }
 
-    fn number(
-        &mut self,
-        n: i8,
-        f: fn(i8, bool) -> Event,
-        p: bool,
-    ) -> Poll<Event> {
+    fn number(&mut self, n: i8, f: fn(i8, bool) -> Event, p: bool) -> Poll<Event> {
         let b = 1u128 << n;
         if (self.nums & b != 0) == p {
             Poll::Pending
@@ -364,19 +359,11 @@ impl Controller {
     }
 
     #[allow(clippy::float_cmp)] // imprecision should be consistent
-    fn axis(
-        &mut self,
-        ev: u8,
-        a: Axs,
-        f: fn(f64) -> Event,
-        v: f64,
-    ) -> Poll<Event> {
+    fn axis(&mut self, ev: u8, a: Axs, f: fn(f64) -> Event, v: f64) -> Poll<Event> {
         let map = self.remap.maps.get(&ev);
         let v = if let Some(map) = map {
             let v = if map.min != 0 || map.max != 0 {
-                (((v - f64::from(map.min)) / f64::from(map.max - map.min))
-                    * 2.0
-                    - 1.0)
+                (((v - f64::from(map.min)) / f64::from(map.max - map.min)) * 2.0 - 1.0)
                     .clamp(-1.0, 1.0)
             } else {
                 self.raw.axis(v).clamp(-1.0, 1.0)
@@ -390,7 +377,8 @@ impl Controller {
             self.raw.axis(v).clamp(-1.0, 1.0)
         };
         let axis = a as usize;
-        if (self.axis[axis] - v).abs() < AXIS_VALUE_EPSILON { // if diff between old and new value is smaller than epsilon
+        if (self.axis[axis] - v).abs() < AXIS_VALUE_EPSILON {
+            // if diff between old and new value is smaller than epsilon
             Poll::Pending
         } else {
             self.axis[axis] = v;
@@ -399,18 +387,11 @@ impl Controller {
     }
 
     #[allow(clippy::float_cmp)] // imprecision should be consistent
-    fn pressure(
-        &mut self,
-        ev: u8,
-        a: Axs,
-        f: fn(f64) -> Event,
-        v: f64,
-    ) -> Poll<Event> {
+    fn pressure(&mut self, ev: u8, a: Axs, f: fn(f64) -> Event, v: f64) -> Poll<Event> {
         let map = self.remap.maps.get(&ev);
         let v = if let Some(map) = map {
             let v = if map.min != 0 || map.max != 0 {
-                ((v - f64::from(map.min)) / f64::from(map.max - map.min))
-                    .clamp(0.0, 1.0)
+                ((v - f64::from(map.min)) / f64::from(map.max - map.min)).clamp(0.0, 1.0)
             } else {
                 self.raw.pressure(v).clamp(0.0, 1.0)
             };
@@ -506,55 +487,29 @@ impl Controller {
             Bumper(p) => self.button(Btn::Bumper, Bumper, p),
             Pinky(p) => self.button(Btn::Pinky, Pinky, p),
             PinkyForward(p) => self.button(Btn::PinkyForward, PinkyForward, p),
-            PinkyBackward(p) => {
-                self.button(Btn::PinkyBackward, PinkyBackward, p)
-            }
+            PinkyBackward(p) => self.button(Btn::PinkyBackward, PinkyBackward, p),
             FlapsUp(p) => self.button(Btn::FlapsUp, FlapsUp, p),
             FlapsDown(p) => self.button(Btn::FlapsDown, FlapsDown, p),
             BoatForward(p) => self.button(Btn::BoatForward, BoatForward, p),
             BoatBackward(p) => self.button(Btn::BoatBackward, BoatBackward, p),
-            AutopilotPath(p) => {
-                self.button(Btn::AutopilotPath, AutopilotPath, p)
-            }
+            AutopilotPath(p) => self.button(Btn::AutopilotPath, AutopilotPath, p),
             AutopilotAlt(p) => self.button(Btn::AutopilotAlt, AutopilotAlt, p),
             EngineMotorL(p) => self.button(Btn::EngineMotorL, EngineMotorL, p),
             EngineMotorR(p) => self.button(Btn::EngineMotorR, EngineMotorR, p),
-            EngineFuelFlowL(p) => {
-                self.button(Btn::EngineFuelFlowL, EngineFuelFlowL, p)
-            }
-            EngineFuelFlowR(p) => {
-                self.button(Btn::EngineFuelFlowR, EngineFuelFlowR, p)
-            }
-            EngineIgnitionL(p) => {
-                self.button(Btn::EngineIgnitionL, EngineIgnitionL, p)
-            }
-            EngineIgnitionR(p) => {
-                self.button(Btn::EngineIgnitionR, EngineIgnitionR, p)
-            }
-            SpeedbrakeBackward(p) => {
-                self.button(Btn::SpeedbrakeBackward, SpeedbrakeBackward, p)
-            }
-            SpeedbrakeForward(p) => {
-                self.button(Btn::SpeedbrakeForward, SpeedbrakeForward, p)
-            }
-            ChinaBackward(p) => {
-                self.button(Btn::ChinaBackward, ChinaBackward, p)
-            }
+            EngineFuelFlowL(p) => self.button(Btn::EngineFuelFlowL, EngineFuelFlowL, p),
+            EngineFuelFlowR(p) => self.button(Btn::EngineFuelFlowR, EngineFuelFlowR, p),
+            EngineIgnitionL(p) => self.button(Btn::EngineIgnitionL, EngineIgnitionL, p),
+            EngineIgnitionR(p) => self.button(Btn::EngineIgnitionR, EngineIgnitionR, p),
+            SpeedbrakeBackward(p) => self.button(Btn::SpeedbrakeBackward, SpeedbrakeBackward, p),
+            SpeedbrakeForward(p) => self.button(Btn::SpeedbrakeForward, SpeedbrakeForward, p),
+            ChinaBackward(p) => self.button(Btn::ChinaBackward, ChinaBackward, p),
             ChinaForward(p) => self.button(Btn::ChinaForward, ChinaForward, p),
             Apu(p) => self.button(Btn::Apu, Apu, p),
-            RadarAltimeter(p) => {
-                self.button(Btn::RadarAltimeter, RadarAltimeter, p)
-            }
-            LandingGearSilence(p) => {
-                self.button(Btn::LandingGearSilence, LandingGearSilence, p)
-            }
+            RadarAltimeter(p) => self.button(Btn::RadarAltimeter, RadarAltimeter, p),
+            LandingGearSilence(p) => self.button(Btn::LandingGearSilence, LandingGearSilence, p),
             Eac(p) => self.button(Btn::Eac, Eac, p),
-            AutopilotToggle(p) => {
-                self.button(Btn::AutopilotToggle, AutopilotToggle, p)
-            }
-            ThrottleButton(p) => {
-                self.button(Btn::ThrottleButton, ThrottleButton, p)
-            }
+            AutopilotToggle(p) => self.button(Btn::AutopilotToggle, AutopilotToggle, p),
+            ThrottleButton(p) => self.button(Btn::ThrottleButton, ThrottleButton, p),
             MouseX(v) => self.axis(ev, Axs::MouseX, MouseX, v),
             MouseY(v) => self.axis(ev, Axs::MouseY, MouseY, v),
             ScrollX(v) => self.axis(ev, Axs::ScrollX, ScrollX, v),
@@ -634,7 +589,7 @@ impl ControllerProvider {
         }
     }
 
-    pub fn create_controller(&self, path: String) -> Option<Controller> { 
+    pub fn create_controller(&self, path: String) -> Option<Controller> {
         if let Some(controller) = self.inner.as_ref().create_controller(path) {
             if self.allowed_names.is_empty() || self.allowed_names.contains(&controller.name()) {
                 return Some(controller);

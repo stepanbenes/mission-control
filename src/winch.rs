@@ -1,5 +1,5 @@
-use std::{time::Duration, thread::JoinHandle, sync::mpsc::TryRecvError};
 use rppal::gpio::{Error, OutputPin};
+use std::{sync::mpsc::TryRecvError, thread::JoinHandle, time::Duration};
 
 /// see: https://ben.akrin.com/driving-a-28byj-48-stepper-motor-uln2003-driver-with-a-raspberry-pi/
 /// https://tutorials-raspberrypi.com/how-to-control-a-stepper-motor-with-raspberry-pi-and-l293d-uln2003a/
@@ -20,8 +20,8 @@ const STEP_SLEEP: Duration = Duration::from_micros(2000); // careful lowering th
 const STEP_COUNT: u32 = 512; // 4096 substeps is 360 degrees
 
 pub struct Winch {
-	thread_handle: JoinHandle<()>,
-	sender: std::sync::mpsc::Sender<WinchCommand>,
+    thread_handle: JoinHandle<()>,
+    sender: std::sync::mpsc::Sender<WinchCommand>,
 }
 
 struct WinchDriver {
@@ -33,24 +33,24 @@ struct WinchDriver {
 }
 
 impl WinchDriver {
-	fn initialize() -> Result<Self, Error> {
-		let gpio = rppal::gpio::Gpio::new()?;
-		let in1 = gpio.get(22)?.into_output_low();
-		let in2 = gpio.get(23)?.into_output_low();
-		let in3 = gpio.get(24)?.into_output_low();
-		let in4 = gpio.get(25)?.into_output_low();
-		let electromagnet = gpio.get(4)?.into_output_high(); // high is off
-		let winch_driver = WinchDriver {
-			in1,
-			in2,
-			in3,
-			in4,
-			electromagnet,
-		};
-		Ok(winch_driver)
-	}
+    fn initialize() -> Result<Self, Error> {
+        let gpio = rppal::gpio::Gpio::new()?;
+        let in1 = gpio.get(22)?.into_output_low();
+        let in2 = gpio.get(23)?.into_output_low();
+        let in3 = gpio.get(24)?.into_output_low();
+        let in4 = gpio.get(25)?.into_output_low();
+        let electromagnet = gpio.get(4)?.into_output_high(); // high is off
+        let winch_driver = WinchDriver {
+            in1,
+            in2,
+            in3,
+            in4,
+            electromagnet,
+        };
+        Ok(winch_driver)
+    }
 
-	pub fn release(&mut self) {
+    pub fn release(&mut self) {
         self.electromagnet.set_low();
         std::thread::sleep(Duration::from_millis(200));
         self.electromagnet.set_high();
@@ -112,24 +112,20 @@ enum WinchCommand {
 
 impl Winch {
     pub fn initialize() -> Result<Self, Error> {
-		let (tx, rx) = std::sync::mpsc::channel::<WinchCommand>();
+        let (tx, rx) = std::sync::mpsc::channel::<WinchCommand>();
 
         let thread_handle = std::thread::spawn(move || {
             let mut driver = WinchDriver::initialize().unwrap();
             let mut peek_command;
-            'outer_loop:
-            while let Ok(command) = rx.recv() {
+            'outer_loop: while let Ok(command) = rx.recv() {
                 peek_command = Some(command);
-                'middle_loop:
-                while let Some(command) = peek_command.take() {
+                'middle_loop: while let Some(command) = peek_command.take() {
                     match command {
                         WinchCommand::Wind { speed } => {
-                            'inner_loop:
-                            loop {
+                            'inner_loop: loop {
                                 if speed >= 0.0 {
                                     driver.step_forward(STEP_SLEEP);
-                                }
-                                else {
+                                } else {
                                     driver.step_backward(STEP_SLEEP);
                                 }
                                 // break the inner loop if there is some command in the queue (except Release command)
@@ -167,33 +163,31 @@ impl Winch {
             driver.turn_off_motor();
         });
 
-
         Ok(Self {
-			thread_handle,
-			sender: tx,
-		})
+            thread_handle,
+            sender: tx,
+        })
     }
 
-	pub fn wind(&mut self) -> Result<(), WinchError> {
-		self.sender.send(WinchCommand::Wind { speed: 1.0 })?;
+    pub fn wind(&mut self) -> Result<(), WinchError> {
+        self.sender.send(WinchCommand::Wind { speed: 1.0 })?;
         Ok(())
     }
 
     pub fn unwind(&mut self) -> Result<(), WinchError> {
-		self.sender.send(WinchCommand::Wind { speed: -1.0 })?;
+        self.sender.send(WinchCommand::Wind { speed: -1.0 })?;
         Ok(())
     }
-	
+
     pub fn stop(&mut self) -> Result<(), WinchError> {
         self.sender.send(WinchCommand::Stop)?;
         Ok(())
     }
 
-	pub fn release(&mut self) -> Result<(), WinchError> {
+    pub fn release(&mut self) -> Result<(), WinchError> {
         self.sender.send(WinchCommand::Release)?;
         Ok(())
     }
-    
 }
 
 impl Drop for Winch {
@@ -213,7 +207,7 @@ impl<T> From<std::sync::mpsc::SendError<T>> for WinchError {
 
 impl std::fmt::Display for WinchError {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f,"{}", self.0)
+        write!(f, "{}", self.0)
     }
 }
 

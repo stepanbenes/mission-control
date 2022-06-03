@@ -19,7 +19,7 @@ use std::os::raw::{c_char, c_int, c_long, c_uint, c_ulong, c_ushort, c_void};
 use std::os::unix::io::RawFd;
 use std::task::{Context, Poll};
 
-use nix::{ioctl_write_ptr};
+use nix::ioctl_write_ptr;
 
 // taken from https://gitlab.com/gilrs-project/gilrs/-/blob/master/gilrs-core/src/platform/linux/ioctl.rs
 ioctl_write_ptr!(eviocsff, b'E', 0x80, FfEffect);
@@ -493,7 +493,6 @@ fn joystick_ff(fd: RawFd, code: i16, strong: f32, weak: f32) {
 
 // Get ID's for rumble and vibrate, if they're supported (otherwise, -1).
 fn joystick_haptic(fd: RawFd, id: i16, strong: f32, weak: f32) -> i16 {
-    
     // run fftest <device-path> to check available effect
     // source code: https://github.com/flosse/linuxconsole/blob/master/utils/fftest.c
 
@@ -517,10 +516,10 @@ fn joystick_haptic(fd: RawFd, id: i16, strong: f32, weak: f32) -> i16 {
     //             offset: 0,
     //             phase: 0,
     //             envelope: FfEnvelope {
-	//                 attack_length: 1000,
-	//                 attack_level: 0x7fff,
-	//                 fade_length: 1000,
-	//                 fade_level: 0x7fff,
+    //                 attack_length: 1000,
+    //                 attack_level: 0x7fff,
+    //                 fade_length: 1000,
+    //                 fade_level: 0x7fff,
     //             },
     //             custom_len: 0,
     //             custom_data: std::ptr::null_mut(),
@@ -748,7 +747,11 @@ impl ControllerProvider {
 impl super::ControllerProvider for ControllerProvider {
     fn create_controller(&self, filename: String) -> Option<crate::Controller> {
         if crate::EVENT_FILE_REGEX.is_match(&filename) {
-            let filename_zero_ended = { let mut n = filename.clone(); n.push('\0'); n };
+            let filename_zero_ended = {
+                let mut n = filename.clone();
+                n.push('\0');
+                n
+            };
             // Try read & write first
             let mut fd = unsafe { open(filename_zero_ended.as_ptr(), 2) };
             // Try readonly second (bluetooth controller - input device)
@@ -774,7 +777,6 @@ impl super::ControllerProvider for ControllerProvider {
 }
 
 impl Listener {
-
     fn new() -> Self {
         const CLOEXEC: c_int = 0o2000000;
         const NONBLOCK: c_int = 0o0004000;
@@ -871,7 +873,7 @@ impl super::Global for Global {
     fn listener(&self) -> Box<dyn super::Listener> {
         Box::new(Listener::new())
     }
-    
+
     fn controller_provider(&self) -> Box<dyn super::ControllerProvider> {
         Box::new(ControllerProvider::new())
     }

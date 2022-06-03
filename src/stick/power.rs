@@ -1,5 +1,5 @@
-use std::fmt::{Display, Formatter};
 use std::collections::HashMap;
+use std::fmt::{Display, Formatter};
 use std::fs::File;
 use std::io::{self, BufRead};
 use std::path::Path;
@@ -28,10 +28,14 @@ impl Display for PowerInfo {
     }
 }
 
-pub fn check_controller_power(device_path: &str) -> Result<Option<PowerInfo>, Box<dyn std::error::Error>> {
+pub fn check_controller_power(
+    device_path: &str,
+) -> Result<Option<PowerInfo>, Box<dyn std::error::Error>> {
     let map = build_device_address_map()?;
     if let Some(address) = map.get(device_path) {
-        if let Some(directory) = find_device_directory(Path::new("/sys/class/power_supply"), address)? {
+        if let Some(directory) =
+            find_device_directory(Path::new("/sys/class/power_supply"), address)?
+        {
             // capacity
             let filepath = Path::new(&directory).join("capacity");
             let file_content = std::fs::read_to_string(&filepath)?;
@@ -44,15 +48,14 @@ pub fn check_controller_power(device_path: &str) -> Result<Option<PowerInfo>, Bo
             let filepath = Path::new(&directory).join("type");
             let file_content = std::fs::read_to_string(&filepath)?;
             let power_type = file_content.trim().to_string();
-            return Ok(
-                Some(PowerInfo {
-                    capacity,
-                    status,
-                    power_type,
-                }));
+            return Ok(Some(PowerInfo {
+                capacity,
+                status,
+                power_type,
+            }));
         }
     }
-	Ok(None)
+    Ok(None)
 }
 
 fn find_device_directory(dir: &Path, device_address: &str) -> io::Result<Option<String>> {
@@ -71,16 +74,23 @@ fn find_device_directory(dir: &Path, device_address: &str) -> io::Result<Option<
     Ok(None)
 }
 
-fn build_device_address_map() -> io::Result<HashMap::<String, String>> {
+fn build_device_address_map() -> io::Result<HashMap<String, String>> {
     let mut device_address_map = HashMap::<String, String>::new();
-	let lines = read_lines("/proc/bus/input/devices")?;
+    let lines = read_lines("/proc/bus/input/devices")?;
     let mut current_address: Option<String> = None;
     for line_result in lines {
         let line = line_result?;
-        if let Some(captures) = crate::DEVICE_INFO_ADDRESS_LINE_REGEX.captures_iter(&line).next() { // Uniq=address
+        if let Some(captures) = crate::DEVICE_INFO_ADDRESS_LINE_REGEX
+            .captures_iter(&line)
+            .next()
+        {
+            // Uniq=address
             current_address = Some(captures[1].to_owned());
-        }
-        else if let Some(captures) = crate::DEVICE_INFO_HANDLERS_LINE_REGEX.captures_iter(&line).next() { // Handlers=...
+        } else if let Some(captures) = crate::DEVICE_INFO_HANDLERS_LINE_REGEX
+            .captures_iter(&line)
+            .next()
+        {
+            // Handlers=...
             let handlers = &captures[1];
             for handler_capture in crate::EVENT_FILE_REGEX.captures_iter(handlers) {
                 let device_name = &handler_capture[0];
@@ -94,7 +104,10 @@ fn build_device_address_map() -> io::Result<HashMap::<String, String>> {
     Ok(device_address_map)
 }
 
-fn read_lines<P>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>> where P: AsRef<Path>, {
+fn read_lines<P>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>>
+where
+    P: AsRef<Path>,
+{
     let file = File::open(filename)?;
     Ok(io::BufReader::new(file).lines())
 }

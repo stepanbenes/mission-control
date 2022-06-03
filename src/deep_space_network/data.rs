@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use serde_repr::{Serialize_repr, Deserialize_repr};
+use serde_repr::{Deserialize_repr, Serialize_repr};
 
 #[derive(Debug, Serialize_repr, Deserialize_repr)]
 #[repr(i32)]

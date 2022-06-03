@@ -114,10 +114,10 @@
 mod ctlr;
 mod event;
 mod listener;
-mod raw;
 mod power;
+mod raw;
 
-pub use ctlr::{Controller, Remap, ControllerProvider};
+pub use ctlr::{Controller, ControllerProvider, Remap};
 pub use event::Event;
 pub use listener::Listener;
 pub use power::{check_controller_power, PowerInfo};
