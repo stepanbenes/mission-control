@@ -87,11 +87,11 @@ async fn main_program_loop(
         tokio::select! {
             _ = ctrl_c() => {
                 println!("Received ctrl+c. Shutting down.");
-                break;
+                break; // break the main event loop
             },
             _ = sigterm_stream.recv() => {
                 println!("Received SIGTERM. Shutting down.");
-                break;
+                break; // break the main event loop
             },
 
             Some(controller_path) = controller_listener.recv() => {
@@ -188,6 +188,8 @@ async fn main_program_loop(
         }
         //println!("---");
     }
+    
+    winch.join()?;
 
     Ok(())
 }

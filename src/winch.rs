@@ -103,6 +103,13 @@ impl WinchDriver {
     }
 }
 
+impl Drop for WinchDriver {
+    fn drop(&mut self) {
+        self.turn_off_motor();
+        println!("Dropping winch driver.");
+    }
+}
+
 #[derive(Debug)]
 enum WinchCommand {
     Wind { speed: f64 },
@@ -149,11 +156,11 @@ impl Winch {
                                         }
                                         continue 'middle_loop;
                                     }
-                                    Err(TryRecvError::Disconnected) => {
-                                        break 'outer_loop;
-                                    }
                                     Err(TryRecvError::Empty) => {
                                         continue 'inner_loop;
+                                    }
+                                    Err(TryRecvError::Disconnected) => {
+                                        break 'outer_loop;
                                     }
                                 }
                             }
@@ -165,7 +172,7 @@ impl Winch {
                             driver.release();
                         }
                         WinchCommand::Quit => {
-                            break; // quit loop
+                            break 'outer_loop; // quit loop, terminate thread
                         }
                     }
                 }
@@ -200,8 +207,6 @@ impl Winch {
                     }
                 }
             }
-
-            driver.turn_off_motor();
         });
 
         Ok(Self {
@@ -229,11 +234,12 @@ impl Winch {
         self.sender.send(WinchCommand::Release)?;
         Ok(())
     }
-}
 
-impl Drop for Winch {
-    fn drop(&mut self) {
-        self.sender.send(WinchCommand::Quit).unwrap();
+    pub fn join(self) -> Result<(), Box<dyn std::error::Error>> {
+        self.sender.send(WinchCommand::Quit)?;
+        println!("Quit command has been sent to winch driver.");
+        self.thread_handle.join().expect("Winch thread could not be joined.");
+        Ok(())
     }
 }
 
