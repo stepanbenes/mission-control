@@ -79,9 +79,10 @@ async fn main_program_loop(
     let mut disconnected_controllers_times = HashMap::<String, Instant>::new();
     let controller_provider = ControllerProvider::new(vec!["Wireless Controller"]);
     let mut sigterm_stream = signal(SignalKind::terminate())?;
-    let mut drive = Drive::initialize()?;
     let mut event_combinator = event_combinator::EventCombinator::new();
-    let mut winch = winch::Winch::initialize()?;
+    
+    let mut drive = Drive::initialize()?; // TODO: make into Option<Drive>
+    let mut winch = winch::Winch::initialize()?; // TODO: make into Option<Winch>
 
     loop {
         tokio::select! {
