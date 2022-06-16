@@ -21,7 +21,7 @@ const MAX_STEP_SLEEP: Duration = Duration::from_micros(5000);
 const STEP_COUNT: u32 = 512; // 4096 substeps is 360 degrees
 
 pub struct Winch {
-    thread_handle: JoinHandle<()>,
+    thread_handle: JoinHandle<Result<(), rppal::gpio::Error>>,
     sender: std::sync::mpsc::Sender<WinchCommand>,
 }
 
@@ -122,8 +122,8 @@ impl Winch {
     pub fn initialize() -> Result<Self, Error> {
         let (tx, rx) = std::sync::mpsc::channel::<WinchCommand>();
 
-        let thread_handle = std::thread::spawn(move || {
-            let mut driver = WinchDriver::initialize().unwrap();
+        let thread_handle = std::thread::spawn(move || -> Result<(), rppal::gpio::Error> {
+            let mut driver = WinchDriver::initialize()?;
             let mut peek_command;
             'outer_loop: while let Ok(command) = rx.recv() {
                 peek_command = Some(command);
@@ -132,9 +132,9 @@ impl Winch {
                         WinchCommand::Wind { speed } => {
                             'inner_loop: loop {
                                 if speed > 0.0 {
-                                    driver.step_forward(map_speed_to_delay(speed));
+                                    driver.step_forward(Winch::map_speed_to_delay(speed));
                                 } else if speed < 0.0 {
-                                    driver.step_backward(map_speed_to_delay(speed));
+                                    driver.step_backward(Winch::map_speed_to_delay(speed));
                                 }
                                 // break the inner loop if there is some command in the queue (except Release command)
                                 match rx.try_recv() {
@@ -143,7 +143,7 @@ impl Winch {
                                         continue 'inner_loop;
                                     }
                                     Ok(new_command) => {
-                                        match try_get_last_command(&rx) {
+                                        match Winch::try_get_last_command(&rx) {
                                             Ok(last_command) => {
                                                 peek_command = Some(last_command);
                                             }
@@ -176,43 +176,43 @@ impl Winch {
                         }
                     }
                 }
-
-                fn map_speed_to_delay(speed: f64) -> Duration {
-                    let speed = speed.abs().max(0.0).min(1.0);
-                    let multiplier = 1.0 - speed;
-                    Duration::from_secs_f64(
-                        MIN_STEP_SLEEP.as_secs_f64()
-                            + (MAX_STEP_SLEEP.as_secs_f64() - MIN_STEP_SLEEP.as_secs_f64())
-                                * multiplier,
-                    )
-                }
-
-                fn try_get_last_command(
-                    rx: &std::sync::mpsc::Receiver<WinchCommand>,
-                ) -> Result<WinchCommand, TryRecvError> {
-                    let mut last_result = Err(TryRecvError::Empty);
-                    loop {
-                        let result = rx.try_recv();
-                        match result {
-                            Ok(_) => {
-                                last_result = result;
-                            }
-                            Err(TryRecvError::Disconnected) => {
-                                return result;
-                            }
-                            Err(TryRecvError::Empty) => {
-                                return last_result;
-                            }
-                        }
-                    }
-                }
             }
+            Ok(())
         });
 
         Ok(Self {
             thread_handle,
             sender: tx,
         })
+    }
+
+    fn map_speed_to_delay(speed: f64) -> Duration {
+        let speed = speed.abs().max(0.0).min(1.0);
+        let multiplier = 1.0 - speed;
+        Duration::from_secs_f64(
+            MIN_STEP_SLEEP.as_secs_f64()
+                + (MAX_STEP_SLEEP.as_secs_f64() - MIN_STEP_SLEEP.as_secs_f64()) * multiplier,
+        )
+    }
+
+    fn try_get_last_command(
+        rx: &std::sync::mpsc::Receiver<WinchCommand>,
+    ) -> Result<WinchCommand, TryRecvError> {
+        let mut last_result = Err(TryRecvError::Empty);
+        loop {
+            let result = rx.try_recv();
+            match result {
+                Ok(_) => {
+                    last_result = result;
+                }
+                Err(TryRecvError::Disconnected) => {
+                    return result;
+                }
+                Err(TryRecvError::Empty) => {
+                    return last_result;
+                }
+            }
+        }
     }
 
     pub fn wind(&mut self, speed: f64) -> Result<(), WinchError> {
@@ -232,10 +232,11 @@ impl Winch {
     pub fn join(self) -> Result<(), Box<dyn std::error::Error>> {
         self.sender.send(WinchCommand::Quit)?;
         println!("Quit command has been sent to winch driver.");
-        self.thread_handle
+        let result = self
+            .thread_handle
             .join()
             .expect("Winch thread could not be joined.");
-        Ok(())
+        Ok(result?)
     }
 }
 
