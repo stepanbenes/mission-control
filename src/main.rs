@@ -10,10 +10,12 @@ mod winch;
 #[macro_use]
 extern crate lazy_static;
 
+use event_combinator::EventCombinator;
 use futures::{
     stream::{FuturesUnordered, StreamExt},
     FutureExt,
 };
+use winch::Winch;
 use std::{
     collections::HashMap,
     time::{Duration, Instant},
@@ -40,6 +42,21 @@ lazy_static! {
         regex::Regex::new("^U: Uniq=([a-zA-Z0-9:]+)$").unwrap();
     static ref DEVICE_INFO_HANDLERS_LINE_REGEX: regex::Regex =
         regex::Regex::new("^H: Handlers=([a-zA-Z0-9\\s]+)$").unwrap();
+}
+
+// ==================================================
+enum Motor {
+    Left,
+    Right,
+    Winch,
+}
+
+enum Command {
+    Drive { motor: Motor, speed: f64 },
+    ReleaseWinch,
+    CheckGamepadPower(String),
+    RumbleGamepad(String),
+    Shutdown,
 }
 
 // ==================================================
@@ -80,9 +97,9 @@ async fn main_program_loop(
     let controller_provider = ControllerProvider::new(vec!["Wireless Controller"]);
     let mut sigterm_stream = signal(SignalKind::terminate())?;
     let mut event_combinator = event_combinator::EventCombinator::new();
-    
+
     let mut drive = Drive::initialize()?; // TODO: make into Option<Drive>
-    let mut winch = winch::Winch::initialize()?; // TODO: make into Option<Winch>
+    let mut winch = Winch::initialize()?; // TODO: make into Option<Winch>
 
     loop {
         tokio::select! {
@@ -102,7 +119,7 @@ async fn main_program_loop(
                 }
             },
 
-            Some((event, controller)) = next_event(&mut controllers) => {
+            Some((event, controller)) = next_controller_event(&mut controllers) => {
                 //println!("{:?}", event); // do not print each event
 
                 // special controller event (combo)
@@ -189,13 +206,24 @@ async fn main_program_loop(
         }
         //println!("---");
     }
-    
+
     winch.join()?;
 
     Ok(())
 }
 
-async fn next_event(controllers: &mut [Controller]) -> Option<(Event, &mut Controller)> {
+fn map_controller_event_to_commands(event: Event, event_combinator: &mut EventCombinator) -> Vec<Command> {
+    todo!("Rename EventCombinator to EventTranslator to translate controller events to commands");
+    todo!("Move thid fn to EventTranslator as a new translate method");
+    [].into()
+}
+
+fn distribute_command(command: Command, drive: Option<&mut Drive>, winch: Option<&mut Winch>, controllers: &mut [Controller]) -> Result<(), Box<dyn std::error::Error>> {
+    todo!();
+    Ok(())
+}
+
+async fn next_controller_event(controllers: &mut [Controller]) -> Option<(Event, &mut Controller)> {
     if controllers.is_empty() {
         return None;
     }

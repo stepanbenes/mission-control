@@ -238,7 +238,9 @@ impl Winch {
     pub fn join(self) -> Result<(), Box<dyn std::error::Error>> {
         self.sender.send(WinchCommand::Quit)?;
         println!("Quit command has been sent to winch driver.");
-        self.thread_handle.join().expect("Winch thread could not be joined.");
+        self.thread_handle
+            .join()
+            .expect("Winch thread could not be joined.");
         Ok(())
     }
 }
