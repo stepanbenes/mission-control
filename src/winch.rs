@@ -216,17 +216,11 @@ impl Winch {
     }
 
     pub fn wind(&mut self, speed: f64) -> Result<(), WinchError> {
-        self.sender.send(WinchCommand::Wind { speed })?;
-        Ok(())
-    }
-
-    pub fn unwind(&mut self, speed: f64) -> Result<(), WinchError> {
-        self.sender.send(WinchCommand::Wind { speed: -speed })?;
-        Ok(())
-    }
-
-    pub fn stop(&mut self) -> Result<(), WinchError> {
-        self.sender.send(WinchCommand::Stop)?;
+        if speed == 0.0 {
+            self.sender.send(WinchCommand::Stop)?;
+        } else {
+            self.sender.send(WinchCommand::Wind { speed })?;
+        }
         Ok(())
     }
 

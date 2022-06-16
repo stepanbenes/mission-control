@@ -48,6 +48,7 @@ impl Drive {
         })
     }
 
+    #[allow(dead_code)]
     pub fn go(&mut self) -> Result<(), PropulsionError> {
         self.left_motor_direction(MotorDirection::Forward)?;
         self.right_motor_direction(MotorDirection::Forward)?;
@@ -58,6 +59,7 @@ impl Drive {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub fn stop(&mut self) -> Result<(), PropulsionError> {
         self.left_motor_direction(MotorDirection::None)?;
         self.right_motor_direction(MotorDirection::None)?;

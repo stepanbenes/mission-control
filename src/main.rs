@@ -1,7 +1,8 @@
+mod command;
 mod deep_space_network;
 mod drive;
 mod error;
-mod event_combinator;
+mod event_translator;
 mod stick;
 
 #[allow(dead_code)]
@@ -10,12 +11,12 @@ mod winch;
 #[macro_use]
 extern crate lazy_static;
 
-use event_combinator::EventCombinator;
+use command::{Command, Motor};
+use event_translator::EventTranslator;
 use futures::{
     stream::{FuturesUnordered, StreamExt},
     FutureExt,
 };
-use winch::Winch;
 use std::{
     collections::HashMap,
     time::{Duration, Instant},
@@ -27,6 +28,7 @@ use tokio::{
     },
     sync::mpsc,
 };
+use winch::Winch;
 
 use drive::Drive;
 use stick::{check_controller_power, Controller, ControllerProvider, Event, Listener};
@@ -42,21 +44,6 @@ lazy_static! {
         regex::Regex::new("^U: Uniq=([a-zA-Z0-9:]+)$").unwrap();
     static ref DEVICE_INFO_HANDLERS_LINE_REGEX: regex::Regex =
         regex::Regex::new("^H: Handlers=([a-zA-Z0-9\\s]+)$").unwrap();
-}
-
-// ==================================================
-enum Motor {
-    Left,
-    Right,
-    Winch,
-}
-
-enum Command {
-    Drive { motor: Motor, speed: f64 },
-    ReleaseWinch,
-    CheckGamepadPower(String),
-    RumbleGamepad(String),
-    Shutdown,
 }
 
 // ==================================================
@@ -96,10 +83,10 @@ async fn main_program_loop(
     let mut disconnected_controllers_times = HashMap::<String, Instant>::new();
     let controller_provider = ControllerProvider::new(vec!["Wireless Controller"]);
     let mut sigterm_stream = signal(SignalKind::terminate())?;
-    let mut event_combinator = event_combinator::EventCombinator::new();
+    let mut event_translator = EventTranslator::new();
 
-    let mut drive = Drive::initialize()?; // TODO: make into Option<Drive>
-    let mut winch = Winch::initialize()?; // TODO: make into Option<Winch>
+    let mut drive = Drive::initialize().ok(); // TODO: make into Option<Drive>
+    let mut winch = Winch::initialize().ok(); // TODO: make into Option<Winch>
 
     loop {
         tokio::select! {
@@ -122,83 +109,15 @@ async fn main_program_loop(
             Some((event, controller)) = next_controller_event(&mut controllers) => {
                 //println!("{:?}", event); // do not print each event
 
-                // special controller event (combo)
-                if let Some(special_event) = event_combinator.add(&event) {
-                    match special_event {
-                        event_combinator::SpecialEvent::Shutdown => {
-                            println!("Shutting down...");
-                            system_shutdown::shutdown()?;
-                        }
+                if let Event::Disconnect(id) = event {
+                    println!("Controller {:?} disconnected", id);
+                    if let Some(filename) = id {
+                        controllers.retain(|c| c.filename() != filename);
+                        disconnected_controllers_times.insert(filename, Instant::now());
                     }
-                }
-                // regular component event
-                else {
-                    match event {
-                        Event::Disconnect(id) => {
-                            println!("Controller {:?} disconnected", id);
-                            if let Some(filename) = id {
-                                controllers.retain(|c| c.filename() != filename);
-                                disconnected_controllers_times.insert(filename, Instant::now());
-                            }
-                        }
-                        Event::ActionA(pressed) => {
-                            if pressed {
-                                drive.stop()?;
-                            }
-                        }
-                        Event::ActionB(pressed) => {
-                            if pressed {
-                                 controller.rumble(0.5f32);
-                            }
-                        }
-                        Event::ActionH(pressed) => {
-                            if pressed {
-                                winch.release()?;
-                            }
-                        }
-                        Event::ActionV(pressed) => {
-                            if pressed {
-                                drive.go()?;
-                            }
-                        }
-                        Event::Exit(pressed) => {
-                            if pressed {
-                                if let Some(power_info) = check_controller_power(controller.filename())? {
-                                    println!("Power info: {}", power_info);
-                                }
-                            }
-                        }
-                        Event::BumperL(_pressed) => {
-                        }
-                        Event::BumperR(_pressed) => {
-                        }
-                        Event::JoyY(value) => {
-                            drive.right_motor_speed(-value)?;
-                        }
-                        Event::CamY(value) => {
-                            drive.left_motor_speed(-value)?;
-                        }
-                        Event::JoyZ(value) => {
-                            let speed = (value + 1.0) / 2.0;
-                            if speed > 0.0 {
-                                winch.wind(speed)?;
-                            } else {
-                                winch.stop()?;
-                            }
-                            //drive.left_motor_speed(value)?;
-                        }
-                        Event::CamZ(value) => {
-                            let speed = (value + 1.0) / 2.0;
-                            if speed > 0.0 {
-                                winch.unwind(speed)?;
-                            } else {
-                                winch.stop()?;
-                            }
-                            //drive.right_motor_speed(value)?;
-                        }
-                        Event::TriggerL(_value) | Event::TriggerR(_value) => {
-                        }
-                        _ => {}
+                } else {
+                    for command in event_translator.translate(event, controller) {
+                        distribute_command(command, drive.as_mut(), winch.as_mut(), &mut controllers)?;
                     }
                 }
             },
@@ -207,19 +126,58 @@ async fn main_program_loop(
         //println!("---");
     }
 
-    winch.join()?;
+    if let Some(winch) = winch {
+        winch.join()?;
+    }
 
     Ok(())
 }
 
-fn map_controller_event_to_commands(event: Event, event_combinator: &mut EventCombinator) -> Vec<Command> {
-    todo!("Rename EventCombinator to EventTranslator to translate controller events to commands");
-    todo!("Move thid fn to EventTranslator as a new translate method");
-    [].into()
-}
-
-fn distribute_command(command: Command, drive: Option<&mut Drive>, winch: Option<&mut Winch>, controllers: &mut [Controller]) -> Result<(), Box<dyn std::error::Error>> {
-    todo!();
+fn distribute_command(
+    command: Command,
+    drive: Option<&mut Drive>,
+    winch: Option<&mut Winch>,
+    controllers: &mut [Controller],
+) -> Result<(), Box<dyn std::error::Error>> {
+    match command {
+        Command::Drive { motor, speed } => match motor {
+            Motor::Left => {
+                if let Some(drive) = drive {
+                    drive.left_motor_speed(speed)?;
+                }
+            }
+            Motor::Right => {
+                if let Some(drive) = drive {
+                    drive.right_motor_speed(speed)?;
+                }
+            }
+            Motor::Winch => {
+                if let Some(winch) = winch {
+                    winch.wind(speed)?;
+                }
+            }
+        },
+        Command::ReleaseWinch => {
+            if let Some(winch) = winch {
+                winch.release()?;
+            }
+        }
+        Command::CheckGamepadPower(controller_id) => {
+            check_controller_power(&controller_id)?;
+        }
+        Command::RumbleGamepad(controller_id) => {
+            if let Some(controller) = controllers
+                .iter_mut()
+                .find(|c| c.filename() == controller_id)
+            {
+                controller.rumble(0.5f32);
+            }
+        }
+        Command::Shutdown => {
+            println!("Shutting down...");
+            system_shutdown::shutdown()?;
+        }
+    }
     Ok(())
 }
 
