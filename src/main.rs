@@ -114,6 +114,8 @@ async fn main_program_loop(
                     if let Some(filename) = id {
                         controllers.retain(|c| c.filename() != filename);
                         disconnected_controllers_times.insert(filename, Instant::now());
+                        // TODO: stop motor, stop winch
+                        // TODO: make disconnect event into disconnect command
                     }
                 } else {
                     for command in event_translator.translate(event, controller) {
@@ -162,7 +164,9 @@ fn distribute_command(
             }
         }
         Command::CheckGamepadPower(controller_id) => {
-            check_controller_power(&controller_id)?;
+            if let Some(power_info) = check_controller_power(&controller_id)? {
+                println!("{controller_id}: {power_info}");
+            }
         }
         Command::RumbleGamepad(controller_id) => {
             if let Some(controller) = controllers
