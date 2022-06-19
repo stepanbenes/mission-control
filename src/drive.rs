@@ -48,6 +48,7 @@ impl Drive {
         })
     }
 
+    #[allow(dead_code)]
     pub fn go(&mut self) -> Result<(), PropulsionError> {
         self.left_motor_direction(MotorDirection::Forward)?;
         self.right_motor_direction(MotorDirection::Forward)?;
@@ -103,43 +104,43 @@ impl Drive {
     }
 
     pub fn left_motor_speed(&mut self, speed: f64) -> Result<(), PropulsionError> {
-        let duty_cycle;
         if speed == 0.0 {
-            duty_cycle = 0_f64;
+            self.pwm0.set_duty_cycle(0_f64)?;
             self.left_motor_direction(MotorDirection::None)?;
+            Ok(self.pwm0.disable()?)
         } else if (-1.0..0.0).contains(&speed) {
             self.left_motor_direction(MotorDirection::Backward)?;
-            duty_cycle = Drive::map_from_range_to_range(speed.abs(), 0.0..=1.0, 0.0..=1.0);
+            let duty_cycle = Drive::map_from_range_to_range(speed.abs(), 0.0..=1.0, 0.0..=1.0);
+            self.pwm0.set_duty_cycle(duty_cycle)?;
+            Ok(self.pwm0.enable()?)
         } else if (0.0..=1.0).contains(&speed) {
             self.left_motor_direction(MotorDirection::Forward)?;
-            duty_cycle = Drive::map_from_range_to_range(speed, 0.0..=1.0, 0.0..=1.0);
+            let duty_cycle = Drive::map_from_range_to_range(speed, 0.0..=1.0, 0.0..=1.0);
+            self.pwm0.set_duty_cycle(duty_cycle)?;
+            Ok(self.pwm0.enable()?)
         } else {
-            return Err(
-                format!("`speed` is outside of allowed range -1..1 (was {}).", speed).into(),
-            );
+            Err(format!("`speed` is outside of allowed range -1..1 (was {}).", speed).into())
         }
-        self.pwm0.set_duty_cycle(duty_cycle)?;
-        Ok(self.pwm0.enable()?)
     }
 
     pub fn right_motor_speed(&mut self, speed: f64) -> Result<(), PropulsionError> {
-        let duty_cycle;
         if speed == 0.0 {
-            duty_cycle = 0_f64;
+            self.pwm1.set_duty_cycle(0_f64)?;
             self.right_motor_direction(MotorDirection::None)?;
+            Ok(self.pwm1.disable()?)
         } else if (-1.0..0.0).contains(&speed) {
             self.right_motor_direction(MotorDirection::Backward)?;
-            duty_cycle = Drive::map_from_range_to_range(speed.abs(), 0.0..=1.0, 0.0..=1.0);
+            let duty_cycle = Drive::map_from_range_to_range(speed.abs(), 0.0..=1.0, 0.0..=1.0);
+            self.pwm1.set_duty_cycle(duty_cycle)?;
+            Ok(self.pwm1.enable()?)
         } else if (0.0..=1.0).contains(&speed) {
             self.right_motor_direction(MotorDirection::Forward)?;
-            duty_cycle = Drive::map_from_range_to_range(speed, 0.0..=1.0, 0.0..=1.0);
+            let duty_cycle = Drive::map_from_range_to_range(speed, 0.0..=1.0, 0.0..=1.0);
+            self.pwm1.set_duty_cycle(duty_cycle)?;
+            Ok(self.pwm1.enable()?)
         } else {
-            return Err(
-                format!("`speed` is outside of allowed range -1..1 (was {}).", speed).into(),
-            );
+            Err(format!("`speed` is outside of allowed range -1..1 (was {}).", speed).into())
         }
-        self.pwm1.set_duty_cycle(duty_cycle)?;
-        Ok(self.pwm1.enable()?)
     }
 
     fn map_from_range_to_range(
