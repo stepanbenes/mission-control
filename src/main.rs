@@ -85,8 +85,8 @@ async fn main_program_loop(
     let mut sigterm_stream = signal(SignalKind::terminate())?;
     let mut event_translator = EventTranslator::new();
 
-    let mut drive = Drive::initialize().ok(); // TODO: make into Option<Drive>
-    let mut winch = Winch::initialize().ok(); // TODO: make into Option<Winch>
+    let mut drive = result_to_option(Drive::initialize(), "Drive initialization");
+    let mut winch = result_to_option(Winch::initialize(), "Winch initialization");
 
     loop {
         tokio::select! {
@@ -123,7 +123,6 @@ async fn main_program_loop(
             },
 
         }
-        //println!("---");
     }
 
     if let Some(winch) = winch {
@@ -219,4 +218,16 @@ fn try_create_new_controller(
         }
     }
     None
+}
+
+fn result_to_option<T, E: std::fmt::Debug>(result: Result<T, E>, job_name: &str) -> Option<T> {
+    match result {
+        Ok(value) => {
+            Some(value)
+        }
+        Err(error) => {
+            eprintln!("{job_name} failed: {error:?}");
+            None
+        }
+    }
 }
