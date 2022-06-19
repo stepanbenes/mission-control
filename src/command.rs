@@ -10,4 +10,5 @@ pub enum Command {
     CheckGamepadPower(String),
     RumbleGamepad(String),
     Shutdown,
+    HandleGamepadDisconnection(String),
 }

@@ -224,6 +224,11 @@ impl Winch {
         Ok(())
     }
 
+    pub fn stop(&mut self) -> Result<(), WinchError> {
+        self.sender.send(WinchCommand::Stop)?;
+        Ok(())
+    }
+
     pub fn release(&mut self) -> Result<(), WinchError> {
         self.sender.send(WinchCommand::Release)?;
         Ok(())

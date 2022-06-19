@@ -108,19 +108,8 @@ async fn main_program_loop(
 
             Some((event, controller)) = next_controller_event(&mut controllers) => {
                 //println!("{:?}", event); // do not print each event
-
-                if let Event::Disconnect(id) = event {
-                    println!("Controller {:?} disconnected", id);
-                    if let Some(filename) = id {
-                        controllers.retain(|c| c.filename() != filename);
-                        disconnected_controllers_times.insert(filename, Instant::now());
-                        // TODO: stop motor, stop winch
-                        // TODO: make disconnect event into disconnect command
-                    }
-                } else {
-                    for command in event_translator.translate(event, controller) {
-                        distribute_command(command, drive.as_mut(), winch.as_mut(), &mut controllers)?;
-                    }
+                for command in event_translator.translate(event, controller) {
+                    distribute_command(command, drive.as_mut(), winch.as_mut(), &mut controllers, &mut disconnected_controllers_times)?;
                 }
             },
 
@@ -138,9 +127,22 @@ fn distribute_command(
     command: Command,
     drive: Option<&mut Drive>,
     winch: Option<&mut Winch>,
-    controllers: &mut [Controller],
+    controllers: &mut Vec<Controller>,
+    disconnected_controllers_times: &mut HashMap<String, Instant>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     match command {
+        Command::HandleGamepadDisconnection(controller_id) => {
+            println!("Controller '{controller_id}' disconnected");
+            controllers.retain(|c| c.filename() != controller_id);
+            disconnected_controllers_times.insert(controller_id, Instant::now());
+            // in case controller disconnected during operation, preventively stop motor, stop winch, stop everything
+            if let Some(drive) = drive {
+                drive.stop()?;
+            }
+            if let Some(winch) = winch {
+                winch.stop()?;
+            }
+        }
         Command::Drive { motor, speed } => match motor {
             Motor::Left => {
                 if let Some(drive) = drive {
@@ -226,9 +228,7 @@ fn try_create_new_controller(
 
 fn result_to_option<T, E: std::fmt::Debug>(result: Result<T, E>, job_name: &str) -> Option<T> {
     match result {
-        Ok(value) => {
-            Some(value)
-        }
+        Ok(value) => Some(value),
         Err(error) => {
             eprintln!("{job_name} failed: {error:?}");
             None

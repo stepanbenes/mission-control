@@ -17,6 +17,9 @@ impl EventTranslator {
 
     pub fn translate(&mut self, event: Event, controller: &Controller) -> Vec<Command> {
         match event {
+            Event::Disconnect(Some(controller_id)) => {
+                return vec![Command::HandleGamepadDisconnection(controller_id)];
+            }
             Event::MenuL(pressed) => {
                 self.menu_left_pressed = pressed;
                 return self.check_shutdown();
