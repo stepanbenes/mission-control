@@ -16,6 +16,8 @@ use std::pin::Pin;
 use std::rc::Rc;
 use std::task::{Context, Poll};
 
+use futures::{FutureExt, StreamExt};
+
 use crate::Event;
 
 const AXIS_VALUE_EPSILON: f64 = 0.001;
@@ -579,6 +581,8 @@ impl Rumble for (f32, f32) {
 pub struct ControllerProvider {
     allowed_names: Vec<&'static str>,
     inner: Box<dyn crate::stick::raw::ControllerProvider>,
+    controllers: Vec<Controller>,
+    disconnected_controllers_times: HashMap<String, std::time::Instant>,
 }
 
 impl ControllerProvider {
@@ -586,10 +590,70 @@ impl ControllerProvider {
         Self {
             inner: crate::stick::raw::GLOBAL.with(|g| g.controller_provider()),
             allowed_names,
+            controllers: vec![],
+            disconnected_controllers_times: HashMap::<String, std::time::Instant>::new(),
         }
     }
 
-    pub fn create_controller(&self, path: String) -> Option<Controller> {
+    pub async fn next_controller_event(&mut self) -> Option<(Event, &mut Controller)> {
+        if self.controllers.is_empty() {
+            return None;
+        }
+        let (event, controller_index) = {
+            let mut controller_futures = self
+                .controllers
+                .iter_mut()
+                .enumerate()
+                .map(|(i, controller)| controller.map(move |event| (event, i)))
+                .collect::<futures::stream::FuturesUnordered<_>>();
+            controller_futures.select_next_some().await
+        };
+        Some((event, &mut self.controllers[controller_index]))
+    }
+
+    pub fn try_create_new_controller(&mut self, controller_path: String) -> Option<&Controller> {
+        if !self
+            .controllers
+            .iter()
+            .any(|c| c.filename() == controller_path)
+        {
+            let was_recently_disconnected = if let Some(time_disconnected) =
+                self.disconnected_controllers_times.get(&controller_path)
+            {
+                if std::time::Instant::now() - *time_disconnected
+                    < std::time::Duration::from_millis(1000)
+                {
+                    true
+                } else {
+                    self.disconnected_controllers_times.remove(&controller_path);
+                    false
+                }
+            } else {
+                false
+            };
+            if !was_recently_disconnected {
+                if let Some(new_controller) = self.create_controller(controller_path) {
+                    self.controllers.push(new_controller);
+                    return self.controllers.last();
+                }
+            }
+        }
+        None
+    }
+
+    pub fn get_mut_controller(&mut self, controller_id: &str) -> Option<&mut Controller> {
+        self.controllers
+            .iter_mut()
+            .find(|c| c.filename() == controller_id)
+    }
+
+    pub fn disconnect_controller(&mut self, controller_id: String) {
+        self.controllers.retain(|c| c.filename() != controller_id);
+        self.disconnected_controllers_times
+            .insert(controller_id, std::time::Instant::now());
+    }
+
+    fn create_controller(&self, path: String) -> Option<Controller> {
         if let Some(controller) = self.inner.as_ref().create_controller(path) {
             if self.allowed_names.is_empty() || self.allowed_names.contains(&controller.name()) {
                 return Some(controller);
