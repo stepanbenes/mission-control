@@ -47,11 +47,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let (controller_sender, controller_receiver) = mpsc::channel::<String>(32);
 
     // controller discovery loop on own thread
-    let _handle = std::thread::spawn(move || {
-        let runtime2 = tokio::runtime::Runtime::new()
-            .expect("Runtime for controller discovery loop could not be created");
-        runtime2.block_on(controller_discovery_loop(controller_sender))
-    });
+    let _handle = std::thread::Builder::new()
+        .name("controller discovery loop".into())
+        .spawn(move || {
+            let runtime2 = tokio::runtime::Runtime::new()
+                .expect("Runtime for controller discovery loop could not be created");
+            runtime2.block_on(controller_discovery_loop(controller_sender))
+        })?;
 
     // main program loop
     let runtime1 = tokio::runtime::Runtime::new()?;

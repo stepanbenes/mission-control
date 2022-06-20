@@ -21,7 +21,7 @@ const MAX_STEP_SLEEP: Duration = Duration::from_micros(5000);
 const STEP_COUNT: u32 = 512; // 4096 substeps is 360 degrees
 
 pub struct Winch {
-    thread_handle: JoinHandle<Result<(), rppal::gpio::Error>>,
+    thread_handle: JoinHandle<()>,
     sender: std::sync::mpsc::Sender<WinchCommand>,
 }
 
@@ -121,9 +121,9 @@ enum WinchCommand {
 impl Winch {
     pub fn initialize() -> Result<Self, Error> {
         let (tx, rx) = std::sync::mpsc::channel::<WinchCommand>();
+        let mut winch_driver = WinchDriver::initialize()?;
 
-        let thread_handle = std::thread::spawn(move || -> Result<(), rppal::gpio::Error> {
-            let mut driver = WinchDriver::initialize()?;
+        let winch_driver_loop = move || {
             let mut peek_command;
             'outer_loop: while let Ok(command) = rx.recv() {
                 peek_command = Some(command);
@@ -132,14 +132,14 @@ impl Winch {
                         WinchCommand::Wind { speed } => {
                             'inner_loop: loop {
                                 if speed > 0.0 {
-                                    driver.step_forward(Winch::map_speed_to_delay(speed));
+                                    winch_driver.step_forward(Winch::map_speed_to_delay(speed));
                                 } else if speed < 0.0 {
-                                    driver.step_backward(Winch::map_speed_to_delay(speed));
+                                    winch_driver.step_backward(Winch::map_speed_to_delay(speed));
                                 }
                                 // break the inner loop if there is some command in the queue (except Release command)
                                 match rx.try_recv() {
                                     Ok(WinchCommand::Release) => {
-                                        driver.release();
+                                        winch_driver.release();
                                         continue 'inner_loop;
                                     }
                                     Ok(new_command) => {
@@ -166,10 +166,10 @@ impl Winch {
                             }
                         }
                         WinchCommand::Stop => {
-                            driver.turn_off_motor();
+                            winch_driver.turn_off_motor();
                         }
                         WinchCommand::Release => {
-                            driver.release();
+                            winch_driver.release();
                         }
                         WinchCommand::Quit => {
                             break 'outer_loop; // quit loop, terminate thread
@@ -177,8 +177,11 @@ impl Winch {
                     }
                 }
             }
-            Ok(())
-        });
+        };
+
+        let thread_handle = std::thread::Builder::new()
+            .name("winch thread".into())
+            .spawn(winch_driver_loop)?;
 
         Ok(Self {
             thread_handle,
@@ -241,7 +244,7 @@ impl Winch {
             .thread_handle
             .join()
             .expect("Winch thread could not be joined.");
-        Ok(result?)
+        Ok(result)
     }
 }
 
