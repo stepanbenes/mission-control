@@ -50,9 +50,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let _handle = std::thread::Builder::new()
         .name("controller discovery loop".into())
         .spawn(move || {
-            let runtime2 = tokio::runtime::Runtime::new()
+            let runtime2 = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
                 .expect("Runtime for controller discovery loop could not be created");
-            runtime2.block_on(controller_discovery_loop(controller_sender))
+            runtime2.block_on(controller_discovery_loop(controller_sender));
+            println!("controller discovery thread ended");
         })?;
 
     // main program loop
