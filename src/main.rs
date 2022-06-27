@@ -12,6 +12,7 @@ mod winch;
 extern crate lazy_static;
 
 use command::{Command, Motor};
+use deep_space_network::{DeepSpaceNetwork, NetworkMessage};
 use event_translator::EventTranslator;
 use tokio::{
     signal::{
@@ -83,6 +84,11 @@ async fn main_program_loop(
     let mut drive = result_to_option(Drive::initialize(), "Drive initialization");
     let mut winch = result_to_option(Winch::initialize(), "Winch initialization");
 
+    let mut network = result_to_option(
+        DeepSpaceNetwork::connect(get_deep_space_hub_url()?).await,
+        "Connection to Deep Space Network",
+    );
+
     loop {
         tokio::select! {
             _ = ctrl_c() => {
@@ -102,8 +108,14 @@ async fn main_program_loop(
                 //println!("{:?}", event);
                 for command in event_translator.translate(event, controller) {
                     distribute_command(command, drive.as_mut(), winch.as_mut(), &mut controller_provider)?;
+                    // if let Some(network) = network {
+                    //     network.call().await?;
+                    // }
                 }
             },
+            Some(message) = next_network_message(&mut network), if network.is_some() => {
+                println!("{message:?}");
+            }
         }
     }
 
@@ -112,6 +124,32 @@ async fn main_program_loop(
     }
 
     Ok(())
+}
+
+async fn next_network_message(
+    network_option: &mut Option<DeepSpaceNetwork>,
+) -> Option<NetworkMessage> {
+    if let Some(network) = network_option {
+        match network.listen().await {
+            Some(Ok(message)) => {
+                return Some(message);
+            }
+            Some(Err(error)) => {
+                eprintln!("Failed to receive Deep Space Network message: {error}");
+                // TODO: try to reconnect
+                *network_option = None; // network is down, set option to None to indicate that network is not available in the main loop
+            }
+            None => (),
+        }
+    }
+    None
+}
+
+fn get_deep_space_hub_url() -> Result<url::Url, url::ParseError> {
+    let server_ip_and_port = "192.168.1.164";
+    let hub_name = "deep-space-network";
+    let url = url::Url::parse(&format!("ws://{server_ip_and_port}/{hub_name}"))?;
+    Ok(url)
 }
 
 fn distribute_command(
