@@ -6,7 +6,7 @@ use tokio_tungstenite::{
     connect_async, tungstenite::protocol::Message, MaybeTlsStream, WebSocketStream,
 };
 
-use super::error::StringError;
+use crate::string_error::StringError;
 pub use data::NetworkMessage;
 
 pub struct DeepSpaceNetwork {

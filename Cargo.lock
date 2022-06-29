@@ -384,11 +384,9 @@ dependencies = [
  "lazy_static",
  "nix 0.24.1",
  "regex",
- "rppal",
  "serde",
  "serde_json",
  "serde_repr",
- "smelling_salts",
  "system_shutdown",
  "tokio",
  "tokio-serial",
@@ -560,16 +558,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "49b3de9ec5dc0a3417da371aab17d729997c15010e7fd24ff707773a33bddb64"
 
 [[package]]
-name = "rppal"
-version = "0.13.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c88c9c6248de4d337747b619d8f671055ef48a87dc21b97998833f189a0bbd4f"
-dependencies = [
- "lazy_static",
- "libc",
-]
-
-[[package]]
 name = "ryu"
 version = "1.0.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -670,12 +658,6 @@ name = "smallvec"
 version = "1.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f2dd574626839106c320a323308629dcb1acfc96e32a8cba364ddc61ac23ee83"
-
-[[package]]
-name = "smelling_salts"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b0ac3b24afd6d59663abbd40d5b99d281d19413e70f43dc5277dfda314c1647b"
 
 [[package]]
 name = "socket2"
