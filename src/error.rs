@@ -3,6 +3,10 @@
 use std::error::Error;
 use std::fmt;
 
+// TODO: use better error handling
+// TODO: use error-stack crate
+// see: https://www.youtube.com/watch?v=g6WUHcyjsfc
+
 #[derive(Debug)]
 pub struct StringError {
     details: String,
