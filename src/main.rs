@@ -146,7 +146,7 @@ async fn next_network_message(
 }
 
 fn get_deep_space_hub_url() -> Result<url::Url, url::ParseError> {
-    let server_ip_and_port = "192.168.1.164";
+    let server_ip_and_port = "192.168.1.163";
     let hub_name = "deep-space-network";
     let url = url::Url::parse(&format!("ws://{server_ip_and_port}/{hub_name}"))?;
     Ok(url)
