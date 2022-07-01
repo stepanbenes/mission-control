@@ -1,0 +1,12 @@
+#!/bin/bash
+set -e
+
+PI_IP=192.168.1.163 # cloudberry ethernet
+TARGET=armv7-unknown-linux-gnueabihf
+
+# build binary
+cargo build --release --target $TARGET
+
+# upload binary
+echo "updating mission-control binary"
+scp -r ./target/$TARGET/release/mission-control pi@$PI_IP:/home/pi/projects/mission-control/target/release/mission-control
