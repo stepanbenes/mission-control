@@ -2,7 +2,7 @@ use rppal::gpio::{Error, OutputPin};
 use std::{sync::mpsc::TryRecvError, thread::JoinHandle, time::Duration};
 
 /// see: https://ben.akrin.com/driving-a-28byj-48-stepper-motor-uln2003-driver-with-a-raspberry-pi/
-/// https://tutorials-raspberrypi.com/how-to-control-a-stepper-motor-with-raspberry-pi-and-l293d-uln2003a/
+/// see: https://tutorials-raspberrypi.com/how-to-control-a-stepper-motor-with-raspberry-pi-and-l293d-uln2003a/
 
 const STEP_SEQUENCE: [(bool, bool, bool, bool); 8] = [
     (true, false, false, true),
