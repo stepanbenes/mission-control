@@ -15,7 +15,7 @@ const STEP_SEQUENCE: [(bool, bool, bool, bool); 8] = [
     (false, false, false, true),
 ];
 
-const MIN_STEP_SLEEP: Duration = Duration::from_micros(1000); // careful lowering this, at some point you run into the mechanical limitation of how quick your motor can move
+const MIN_STEP_SLEEP: Duration = Duration::from_micros(800); // careful lowering this, at some point you run into the mechanical limitation of how quick your motor can move
 const MAX_STEP_SLEEP: Duration = Duration::from_micros(5000);
 
 const STEP_COUNT: u32 = 512; // 4096 substeps is 360 degrees
