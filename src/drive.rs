@@ -110,12 +110,12 @@ impl Drive {
             Ok(self.pwm0.disable()?)
         } else if (-1.0..0.0).contains(&speed) {
             self.left_motor_direction(MotorDirection::Backward)?;
-            let duty_cycle = Drive::map_from_range_to_range(speed.abs(), 0.0..=1.0, 0.0..=1.0);
+            let duty_cycle = Drive::map_from_range_to_range(speed.abs(), 0.0..=1.0, 0.15..=0.5);
             self.pwm0.set_duty_cycle(duty_cycle)?;
             Ok(self.pwm0.enable()?)
         } else if (0.0..=1.0).contains(&speed) {
             self.left_motor_direction(MotorDirection::Forward)?;
-            let duty_cycle = Drive::map_from_range_to_range(speed, 0.0..=1.0, 0.0..=1.0);
+            let duty_cycle = Drive::map_from_range_to_range(speed, 0.0..=1.0, 0.15..=0.5);
             self.pwm0.set_duty_cycle(duty_cycle)?;
             Ok(self.pwm0.enable()?)
         } else {
@@ -130,12 +130,12 @@ impl Drive {
             Ok(self.pwm1.disable()?)
         } else if (-1.0..0.0).contains(&speed) {
             self.right_motor_direction(MotorDirection::Backward)?;
-            let duty_cycle = Drive::map_from_range_to_range(speed.abs(), 0.0..=1.0, 0.0..=1.0);
+            let duty_cycle = Drive::map_from_range_to_range(speed.abs(), 0.0..=1.0, 0.15..=0.5);
             self.pwm1.set_duty_cycle(duty_cycle)?;
             Ok(self.pwm1.enable()?)
         } else if (0.0..=1.0).contains(&speed) {
             self.right_motor_direction(MotorDirection::Forward)?;
-            let duty_cycle = Drive::map_from_range_to_range(speed, 0.0..=1.0, 0.0..=1.0);
+            let duty_cycle = Drive::map_from_range_to_range(speed, 0.0..=1.0, 0.15..=0.5);
             self.pwm1.set_duty_cycle(duty_cycle)?;
             Ok(self.pwm1.enable()?)
         } else {
