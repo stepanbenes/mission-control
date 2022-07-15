@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-PI_IP=192.168.1.60 # rex
+PI_IP=192.168.1.60 # cybertruck
 TARGET=armv7-unknown-linux-gnueabihf
 
 # build binary
@@ -9,7 +9,7 @@ cargo build --release --target $TARGET
 
 # upload binary
 echo "updating mission-control binary"
-scp -r ./target/$TARGET/release/mission-control pi@$PI_IP:/home/pi/mission-control/target/release/mission-control
+scp -r ./target/$TARGET/release/mission-control pi@$PI_IP:/home/pi/mission-control
 
 # execute binary
 echo -n "restarting mission-control service... "
