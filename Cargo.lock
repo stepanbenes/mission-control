@@ -381,6 +381,8 @@ name = "mission-control"
 version = "0.1.0"
 dependencies = [
  "futures",
+ "futures-channel",
+ "futures-util",
  "lazy_static",
  "nix 0.24.1",
  "regex",

@@ -1,4 +1,6 @@
+pub mod client;
 mod data;
+pub mod server;
 
 use futures::{stream::StreamExt, SinkExt};
 use tokio::net::TcpStream;
