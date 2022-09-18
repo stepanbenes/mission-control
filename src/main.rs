@@ -77,11 +77,11 @@ async fn controller_discovery_loop(tx: mpsc::Sender<String>) {
 async fn main_program_loop(
     mut controller_listener: mpsc::Receiver<String>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let (server_result, _) = tokio::join!(
-        deep_space_network::server::test("127.0.0.1:8080"),
-        deep_space_network::client::test("ws://127.0.0.1:8080")
-    );
-    server_result?;
+    // let (server_result, _) = tokio::join!(
+    //     deep_space_network::server::test("127.0.0.1:8080"),
+    //     deep_space_network::client::test("ws://127.0.0.1:8080")
+    // );
+    // server_result?;
 
     let mut controller_provider = ControllerProvider::new(vec!["Wireless Controller"]);
     let mut sigterm_stream = signal(SignalKind::terminate())?;
