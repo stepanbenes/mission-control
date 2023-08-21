@@ -3,6 +3,7 @@ mod deep_space_network;
 mod drive;
 mod error;
 mod event_translator;
+mod interactive_stdin;
 mod stick;
 
 #[allow(dead_code)]
@@ -21,10 +22,13 @@ use tokio::{
     },
     sync::mpsc,
 };
+
 use winch::Winch;
 
 use drive::Drive;
 use stick::{check_controller_power, Controller, ControllerProvider, Event, Listener};
+
+use interactive_stdin::InteractiveStdin;
 
 // ==================================================
 // REGEX definitions >>>
@@ -89,6 +93,8 @@ async fn main_program_loop(
         "Connection to Deep Space Network",
     );
 
+    let mut stdin = InteractiveStdin::new();
+
     loop {
         tokio::select! {
             _ = ctrl_c() => {
@@ -115,6 +121,9 @@ async fn main_program_loop(
             },
             Some(message) = next_network_message(&mut network), if network.is_some() => {
                 println!("{message:?}");
+            },
+            Ok(Some(line)) = stdin.next_line() => {
+                println!("got line: {line}");
             }
         }
     }
