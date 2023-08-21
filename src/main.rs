@@ -5,6 +5,7 @@ mod error;
 mod event_translator;
 mod interactive_stdin;
 mod stick;
+mod pid_controller;
 
 #[allow(dead_code)]
 mod winch;
@@ -85,6 +86,8 @@ async fn main_program_loop(
     let mut sigterm_stream = signal(SignalKind::terminate())?;
     let mut event_translator = EventTranslator::new();
 
+    // TODO: wrap Drive and Winch into one object 'MotorController' that contains PidController for setting motor speeds
+
     let mut drive = result_to_option(Drive::initialize(), "Drive initialization");
     let mut winch = result_to_option(Winch::initialize(), "Winch initialization");
 
@@ -123,6 +126,7 @@ async fn main_program_loop(
                 println!("{message:?}");
             },
             Ok(Some(line)) = stdin.next_line() => {
+                // TODO: translate line into command
                 println!("got line: {line}");
             }
         }
@@ -179,6 +183,7 @@ fn distribute_command(
                 winch.stop()?;
             }
         }
+        // TODO: do not control motor directly from gamepad listener, add Command ChangeSpeed? and send it to PID controller of motor, that will generate Drive commands in loop with constant time interval (separate thread)
         Command::Drive { motor, speed } => match motor {
             Motor::Left => {
                 if let Some(drive) = drive {
