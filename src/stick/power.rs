@@ -38,15 +38,15 @@ pub fn check_controller_power(
         {
             // capacity
             let filepath = Path::new(&directory).join("capacity");
-            let file_content = std::fs::read_to_string(&filepath)?;
+            let file_content = std::fs::read_to_string(filepath)?;
             let capacity = file_content.trim().parse::<u32>()?;
             // status
             let filepath = Path::new(&directory).join("status");
-            let file_content = std::fs::read_to_string(&filepath)?;
+            let file_content = std::fs::read_to_string(filepath)?;
             let status = file_content.trim().to_string();
             // type
             let filepath = Path::new(&directory).join("type");
-            let file_content = std::fs::read_to_string(&filepath)?;
+            let file_content = std::fs::read_to_string(filepath)?;
             let power_type = file_content.trim().to_string();
             return Ok(Some(PowerInfo {
                 capacity,

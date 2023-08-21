@@ -537,7 +537,7 @@ impl Future for Controller {
         let mut this = self.as_mut();
 
         if let Poll::Ready(event) = this.raw.poll(cx) {
-            let out = Self::process(&mut *this, event);
+            let out = Self::process(&mut this, event);
             if out.is_pending() {
                 Self::poll(self, cx)
             } else {
