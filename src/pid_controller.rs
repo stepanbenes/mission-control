@@ -24,14 +24,14 @@ impl PIDController {
 
     pub fn compute(&mut self, input: f64) -> f64 {
         let error = self.setpoint - input;
-        
+
         self.integral += error * self.time_step;
         let derivative = (error - self.prev_error) / self.time_step;
-        
+
         let output = self.kp * error + self.ki * self.integral + self.kd * derivative;
-        
+
         self.prev_error = error;
-        
+
         output
     }
 
@@ -39,6 +39,20 @@ impl PIDController {
         self.setpoint = setpoint;
         self.integral = 0.0;
         self.prev_error = 0.0;
+    }
+}
+
+impl std::default::Default for PIDController {
+    fn default() -> Self {
+        Self {
+            kp: 1.0,
+            ki: 0.1,
+            kd: 0.01,
+            setpoint: 0.0,
+            integral: 0.0,
+            prev_error: 0.0,
+            time_step: 1.0,
+        }
     }
 }
 
