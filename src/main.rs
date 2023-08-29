@@ -90,7 +90,10 @@ async fn main_program_loop(
 
     let mut winch = result_to_option(Winch::initialize(), "Winch initialization");
 
-    let mut drive_dispatcher = result_to_option(Drive::initialize(), "Drive initialization").map(|drive| DriveDispatcher::new(drive));
+    let mut drive_dispatcher = DriveDispatcher::new(result_to_option(
+        Drive::initialize(),
+        "Drive initialization",
+    ));
 
     let mut network = result_to_option(
         DeepSpaceNetwork::connect(get_deep_space_hub_url()?).await,
@@ -117,7 +120,7 @@ async fn main_program_loop(
             Some((event, controller)) = controller_provider.next_controller_event() => {
                 //println!("{:?}", event);
                 for command in event_translator.translate(event, controller) {
-                    distribute_command(command, drive_dispatcher.as_mut(), winch.as_mut(), &mut controller_provider)?;
+                    distribute_command(command, &mut drive_dispatcher, winch.as_mut(), &mut controller_provider)?;
                     // if let Some(network) = network {
                     //     network.call().await?;
                     // }
@@ -129,7 +132,11 @@ async fn main_program_loop(
             Ok(Some(line)) = stdin.next_line() => {
                 // TODO: translate line into command
                 println!("got line: {line}");
-            }
+                drive_dispatcher.set_left_motor_speed(1.0);
+            },
+            Ok(_) = drive_dispatcher.update() => {
+                println!("tick!");
+            },
         }
     }
 
@@ -168,7 +175,7 @@ fn get_deep_space_hub_url() -> Result<url::Url, url::ParseError> {
 
 fn distribute_command(
     command: Command,
-    drive_dispatcher: Option<&mut DriveDispatcher>,
+    drive_dispatcher: &mut DriveDispatcher,
     winch: Option<&mut Winch>,
     controller_provider: &mut ControllerProvider,
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -177,23 +184,17 @@ fn distribute_command(
             println!("Controller '{controller_id}' disconnected");
             controller_provider.disconnect_controller(controller_id);
             // in case controller disconnected during operation, preventively stop motor, stop winch, stop everything
-            if let Some(drive_dispatcher) = drive_dispatcher {
-                drive_dispatcher.stop()?;
-            }
+            drive_dispatcher.stop()?;
             if let Some(winch) = winch {
                 winch.stop()?;
             }
         }
         Command::Drive { motor, speed } => match motor {
             Motor::Left => {
-                if let Some(drive_dispatcher) = drive_dispatcher {
-                    drive_dispatcher.set_left_motor_speed(speed)?;
-                }
+                drive_dispatcher.set_left_motor_speed(speed);
             }
             Motor::Right => {
-                if let Some(drive_dispatcher) = drive_dispatcher {
-                    drive_dispatcher.set_right_motor_speed(speed)?;
-                }
+                drive_dispatcher.set_right_motor_speed(speed);
             }
             Motor::Winch => {
                 if let Some(winch) = winch {

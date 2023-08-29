@@ -44,15 +44,7 @@ impl PIDController {
 
 impl std::default::Default for PIDController {
     fn default() -> Self {
-        Self {
-            kp: 1.0,
-            ki: 0.1,
-            kd: 0.01,
-            setpoint: 0.0,
-            integral: 0.0,
-            prev_error: 0.0,
-            time_step: 1.0,
-        }
+        Self::new(1.0, 0.1, 0.01, 0.0)
     }
 }
 
