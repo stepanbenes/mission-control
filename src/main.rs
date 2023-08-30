@@ -2,10 +2,10 @@ mod command;
 mod deep_space_network;
 mod drive;
 mod drive_dispatcher;
+mod easing;
 mod error;
 mod event_translator;
 mod interactive_stdin;
-mod pid_controller;
 mod stick;
 
 #[allow(dead_code)]
@@ -131,11 +131,12 @@ async fn main_program_loop(
             },
             Ok(Some(line)) = stdin.next_line() => {
                 // TODO: translate line into command
-                println!("got line: {line}");
-                drive_dispatcher.set_left_motor_speed(1.0);
+                if let Ok(value) = line.parse::<f64>() {
+                    drive_dispatcher.set_left_motor_speed(value);
+                }
             },
             Ok(_) = drive_dispatcher.update() => {
-                println!("tick!");
+                //println!("tick!");
             },
         }
     }
@@ -184,7 +185,7 @@ fn distribute_command(
             println!("Controller '{controller_id}' disconnected");
             controller_provider.disconnect_controller(controller_id);
             // in case controller disconnected during operation, preventively stop motor, stop winch, stop everything
-            drive_dispatcher.stop()?;
+            drive_dispatcher.stop_immediately()?;
             if let Some(winch) = winch {
                 winch.stop()?;
             }
