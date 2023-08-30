@@ -59,4 +59,8 @@ impl Easing {
         let eased_t = (self.easing_fn)(normalized_t);
         self.start_value + (self.end_value - self.start_value) * eased_t
     }
+
+    pub fn is_finished(&self) -> bool {
+        self.time >= 1.0 || self.start_value == self.end_value
+    }
 }

@@ -132,7 +132,7 @@ async fn main_program_loop(
             Ok(Some(line)) = stdin.next_line() => {
                 // TODO: translate line into command
                 if let Ok(value) = line.parse::<f64>() {
-                    drive_dispatcher.set_left_motor_speed(value);
+                    drive_dispatcher.set_left_motor_speed(value)?;
                 }
             },
             Ok(_) = drive_dispatcher.update() => {
@@ -192,10 +192,10 @@ fn distribute_command(
         }
         Command::Drive { motor, speed } => match motor {
             Motor::Left => {
-                drive_dispatcher.set_left_motor_speed(speed);
+                drive_dispatcher.set_left_motor_speed(speed)?;
             }
             Motor::Right => {
-                drive_dispatcher.set_right_motor_speed(speed);
+                drive_dispatcher.set_right_motor_speed(speed)?;
             }
             Motor::Winch => {
                 if let Some(winch) = winch {
