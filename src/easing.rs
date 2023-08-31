@@ -23,7 +23,8 @@ impl Easing {
         duration_per_unit_value: f64,
         time_step: f64,
     ) -> Self {
-        fn ease_in_out_cubic(t: f64) -> f64 {
+        // Easing function: Ease In Ease Out Cubic (smooth start, rapid middle, smooth end)
+        fn _ease_in_out_cubic(t: f64) -> f64 {
             if t < 0.5 {
                 4.0 * t * t * t
             } else {
@@ -32,13 +33,21 @@ impl Easing {
             }
         }
 
+        // Easing function: Ease Out Cubic (rapid start, smooth end)
+        fn ease_out_cubic(t: f64) -> f64 {
+            let t_minus_one = t - 1.0;
+            t_minus_one * t_minus_one * t_minus_one + 1.0
+        }
+
+        // TODO: add bottom threshold for easing function, skip lower values ~ 0.0..0.3
+
         Easing {
             start_value,
             end_value,
             duration_per_unit_value,
             time_step,
             time: 0.0,
-            easing_fn: ease_in_out_cubic,
+            easing_fn: ease_out_cubic,
         }
     }
 
