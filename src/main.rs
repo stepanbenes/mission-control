@@ -130,9 +130,13 @@ async fn main_program_loop(
                 println!("{message:?}");
             },
             Ok(Some(line)) = stdin.next_line() => {
-                // TODO: translate line into command
-                if let Ok(value) = line.parse::<f64>() {
-                    drive_dispatcher.set_left_motor_speed(value)?;
+                match parse_commands(line) {
+                    Ok(commands) => {
+                        for command in commands {
+                            distribute_command(command, &mut drive_dispatcher, winch.as_mut(), &mut controller_provider)?;
+                        }
+                    },
+                    Err(error) => println!("{error}"),
                 }
             },
             Ok(_) = drive_dispatcher.update() => {
@@ -146,6 +150,31 @@ async fn main_program_loop(
     }
 
     Ok(())
+}
+
+fn parse_commands(line: String) -> Result<Vec<Command>, Box<dyn std::error::Error>> {
+    let tokens = line.split_whitespace().collect::<Vec<_>>();
+    match &tokens[..] {
+        ["l" | "L", value] => Ok(vec![Command::Drive {
+            motor: Motor::Left,
+            speed: value.parse()?,
+        }]),
+        ["r" | "R", value] => Ok(vec![Command::Drive {
+            motor: Motor::Right,
+            speed: value.parse()?,
+        }]),
+        ["stop"] => Ok(vec![
+            Command::Drive {
+                motor: Motor::Left,
+                speed: 0.0,
+            },
+            Command::Drive {
+                motor: Motor::Right,
+                speed: 0.0,
+            },
+        ]),
+        _ => Err("unrecognized command".into()),
+    }
 }
 
 async fn next_network_message(
