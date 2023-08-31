@@ -25,7 +25,7 @@ pub struct DriveDispatcher {
 
 impl DriveDispatcher {
     pub fn new(drive: Option<Drive>) -> DriveDispatcher {
-        let time_step = 0.1; // duration of one tick in seconds
+        let time_step = 0.02; // duration of one tick in seconds
         let duration_in_unit_value = 1.0; // 1.0 duration in seconds per 1.0 value distance = 0.5 / 1.0 = 0.5
         let (easing_trigger, easing_trigger_handler) = unbounded_channel::<()>();
         DriveDispatcher {
@@ -91,7 +91,8 @@ impl DriveDispatcher {
             self.use_interval_ticking = false; // replace interval ticking with waiting on changing motor speed by calling either of methods set_left_motor_speed, set_right_motor_speed or stop_immediately
         }
 
-        println!("[{}, {}]", self.left_motor_speed, self.right_motor_speed);
+        // println!("[{}, {}]", self.left_motor_speed, self.right_motor_speed);
+
         Ok(())
     }
 }
